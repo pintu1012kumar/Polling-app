@@ -34,14 +34,34 @@ export default function PollsPage() {
 
   const router = useRouter();
 
-  // Authentication check useEffect
+  // Authentication and role check useEffect
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
       } else {
-        fetchPolls();
+        // Fetch user role
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (userError || !userData) {
+          alert("Failed to fetch user role");
+          router.push("/login");
+          return;
+        }
+
+        if (userData.role === "user") {
+          router.push("/polls");
+        } else if (userData.role === "admin") {
+          fetchPolls();
+        } else {
+          alert("Unknown user role");
+          router.push("/login");
+        }
       }
       setIsAuthLoading(false);
     };

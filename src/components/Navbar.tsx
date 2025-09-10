@@ -58,7 +58,7 @@ export default function Navbar() {
   return (
      <nav className="sticky top-0 z-50 text-black bg-gray-100 p-4 flex justify-between items-center ">
       <div className="text-xl font-bold">
-        <Link href="/">My App</Link>
+        <Link href="/">Polling App</Link>
       </div>
       <div className="flex items-center space-x-4">
         {user ? (
@@ -68,7 +68,7 @@ export default function Navbar() {
             <LogoutButton /> {/* Use the new component */}
           </>
         ) : (
-          <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+          <Link href="/login" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
             Login
           </Link>
         )}

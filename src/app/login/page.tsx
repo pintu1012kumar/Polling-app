@@ -33,7 +33,6 @@ const FormSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
 
-  // Redirect logged-in users to /dashboard
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -54,7 +53,28 @@ export default function LoginPage() {
     if (error) {
       alert("Login failed: " + error.message);
     } else {
-      router.push("/polls");
+      // Fetch user role after successful login
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (userError || !userData) {
+          alert("Failed to fetch user role");
+          return;
+        }
+
+        if (userData.role === "admin") {
+          router.push("/admin/polls");
+        } else if (userData.role === "user") {
+          router.push("/polls");
+        } else {
+          alert("Unknown user role");
+        }
+      }
     }
   };
 
