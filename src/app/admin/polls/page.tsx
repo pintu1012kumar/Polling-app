@@ -5,8 +5,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { convertFileUrlToHtml } from "@/lib/fileExtractor";
-import { Modal } from "@/components/ui/modal";
 import { useRouter } from "next/navigation";
+import {
+  PlusCircle,
+  Pencil,
+  Trash2,
+  FileText,
+  Download,
+  X,
+  RefreshCw,
+} from "lucide-react";
 
 interface Poll {
   id: string;
@@ -37,7 +45,9 @@ export default function PollsPage() {
   // Authentication and role check useEffect
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
       } else {
@@ -68,11 +78,13 @@ export default function PollsPage() {
 
     checkAuth();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        router.push("/login");
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!session) {
+          router.push("/login");
+        }
       }
-    });
+    );
 
     return () => {
       listener.subscription.unsubscribe();
@@ -191,6 +203,7 @@ export default function PollsPage() {
     if (!poll.file_url || !poll.file_type) return;
     setModalTitle(`Extracted Text for: ${poll.question}`);
     setShowModal(true);
+    setModalContent("Loading...");
     try {
       const html = await convertFileUrlToHtml(poll.file_url, poll.file_type);
       setModalContent(html);
@@ -198,132 +211,191 @@ export default function PollsPage() {
       setModalContent("Failed to extract text.");
     }
   };
-  
-  // Render a loading spinner or message while authentication is being checked
+
   if (isAuthLoading) {
     return (
-      <div className="flex justify-center items-center h-screen text-lg">
-        Loading...
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="flex flex-col items-center">
+          <RefreshCw className="h-10 w-10 text-blue-500 animate-spin" />
+          <span className="mt-4 text-xl font-medium text-gray-700">
+            Loading...
+          </span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col md:flex-row space-y-8 md:space-y-0 md:space-x-8 items-start">
-      {/* Left Column: Form */}
-      <div className="md:w-1/3 p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h1 className="text-xl font-semibold mb-6 text-center">Admin: Manage Polls</h1>
-        <div className="space-y-4">
-          <input
-            type="text"
-            placeholder="Poll question"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          {options.map((opt, idx) => (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Form Card */}
+        <div className="md:col-span-1 p-6 bg-white rounded-2xl shadow-xl border border-gray-200 h-fit sticky top-8">
+          <h1 className="text-2xl font-bold mb-6 text-gray-800 text-center">
+            {editingId ? "Edit Poll" : "Create New Poll"}
+          </h1>
+          <div className="space-y-4">
             <input
-              key={idx}
               type="text"
-              placeholder={`Option ${idx + 1}`}
-              value={opt}
+              placeholder="Enter poll question"
+              value={question}
               onChange={(e) => {
-                const newOpts = [...options];
-                newOpts[idx] = e.target.value;
-                setOptions(newOpts);
+                if (e.target.value.length <= 50) {
+                  setQuestion(e.target.value);
+                }
               }}
-              className="w-full border border-gray-300 p-2 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
             />
-          ))}
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="w-full text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-          <Button onClick={handleSavePoll} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-md">
-            {loading ? "Saving..." : editingId ? "Update Poll" : "Create Poll"}
-          </Button>
-          {editingId && (
-            <Button variant="secondary" onClick={resetForm} className="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 rounded-md">
-              Cancel
+            {options.map((opt, idx) => (
+              <input
+                key={idx}
+                type="text"
+                placeholder={`Option ${idx + 1}`}
+                value={opt}
+                onChange={(e) => {
+                  if (e.target.value.length <= 10) {
+                    const newOpts = [...options];
+                    newOpts[idx] = e.target.value;
+                    setOptions(newOpts);
+                  }
+                }}
+                className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              />
+            ))}
+            <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200">
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <div className="flex flex-col items-center">
+                <PlusCircle className="h-6 w-6 text-gray-400" />
+                <span className="mt-2 text-sm text-gray-600">
+                  {file ? file.name : "Click to add a file (optional)"}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleSavePoll}
+              disabled={loading}
+              className="w-full text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : editingId ? (
+                <>
+                  <Pencil className="h-4 w-4" />
+                  <span>Update Poll</span>
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="h-4 w-4" />
+                  <span>Create Poll</span>
+                </>
+              )}
             </Button>
-          )}
+            {editingId && (
+              <Button
+                variant="secondary"
+                onClick={resetForm}
+                className="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Existing Polls Card List */}
+        <div className="md:col-span-2 p-6 bg-white rounded-2xl shadow-xl border border-gray-200">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
+            Existing Polls
+          </h2>
+          <ul className="space-y-6">
+            {polls.length > 0 ? (
+              polls.map((poll) => (
+                <li
+                  key={poll.id}
+                  className="p-6 rounded-xl shadow-lg border border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center"
+                >
+                  <div className="flex-1 mb-4 md:mb-0">
+                    <h3 className="font-bold text-xl mb-2 text-gray-800">
+                      {poll.question}
+                    </h3>
+                    <ul className="list-disc ml-5 text-gray-700 space-y-1">
+                      <li>{poll.option1}</li>
+                      <li>{poll.option2}</li>
+                      <li>{poll.option3}</li>
+                      <li>{poll.option4}</li>
+                    </ul>
+                    {poll.file_url && (
+                      <div className="flex space-x-2 items-center mt-3">
+                        <a
+                          href={poll.file_url}
+                          download
+                          className="flex items-center space-x-1 text-blue-600 hover:underline font-medium"
+                        >
+                          <Download size={18} />
+                          <span>Download File</span>
+                        </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewExtractedText(poll)}
+                          className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                        >
+                          <FileText size={18} />
+                          <span>View File</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => handleEditPoll(poll)}
+                      className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-1"
+                    >
+                      <Pencil size={18} />
+                      <span>Edit</span>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDeletePoll(poll.id, poll.file_url)}
+                      className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-1"
+                    >
+                      <Trash2 size={18} />
+                      <span>Delete</span>
+                    </Button>
+                  </div>
+                </li>
+              ))
+            ) : (
+              <p className="text-center text-gray-500 text-lg">
+                No polls created yet.
+              </p>
+            )}
+          </ul>
         </div>
       </div>
-
-      {/* Right Column: Existing Polls */}
-      <div className="flex-1 p-6 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h2 className="text-xl font-semibold mb-6 text-center">Existing Polls</h2>
-        <ul className="space-y-4">
-          {polls.map((poll) => (
-            <li
-              key={poll.id}
-              className="p-4 rounded-lg shadow-sm border border-gray-200 bg-gray-50"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-lg mb-1">{poll.question}</h3>
-                  <ul className="list-disc ml-5 text-gray-700 space-y-1">
-                    <li>{poll.option1}</li>
-                    <li>{poll.option2}</li>
-                    <li>{poll.option3}</li>
-                    <li>{poll.option4}</li>
-                  </ul>
-                  {poll.file_url && (
-                    <div className="flex space-x-2 items-center mt-3">
-                      <a
-                        href={poll.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 underline font-medium"
-                      >
-                        Download File
-                      </a>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewExtractedText(poll)}
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                      >
-                        View Text
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col space-y-2 ml-4">
-                  <Button
-                    onClick={() => handleEditPoll(poll)}
-                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDeletePoll(poll.id, poll.file_url)}
-                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-4xl max-h-[80vh] rounded-lg shadow-lg p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl p-6 overflow-hidden">
             <button
               onClick={() => setShowModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 p-2 text-2xl font-semibold z-20 bg-white rounded-full leading-none"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-20"
+              aria-label="Close modal"
             >
-              &times;
+              <X size={28} />
             </button>
-            <div className="overflow-y-auto max-h-[calc(80vh-4rem)]">
-              <h2 className="text-xl font-bold mb-4">{modalTitle}</h2>
+            <div className="overflow-y-auto max-h-[calc(90vh-3rem)] pr-4">
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">
+                {modalTitle}
+              </h2>
               <div
-                className="prose max-w-none"
+                className="prose max-w-none text-gray-700 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: modalContent }}
               />
             </div>
