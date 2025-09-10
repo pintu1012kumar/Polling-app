@@ -33,11 +33,11 @@ const FormSchema = z.object({
 export default function SignupPage() {
   const router = useRouter();
 
-  // Redirect logged-in users to /dashboard
+  // Redirect logged-in users to /polls
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user) router.push("/dashboard");
+      if (data.user) router.push("/polls");
     };
     checkUser();
   }, [router]);

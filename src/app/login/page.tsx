@@ -37,7 +37,7 @@ export default function LoginPage() {
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user) router.push("/dashboard");
+      if (data.user) router.push("/polls");
     };
     checkUser();
   }, [router]);
@@ -54,7 +54,7 @@ export default function LoginPage() {
     if (error) {
       alert("Login failed: " + error.message);
     } else {
-      router.push("/dashboard");
+      router.push("/polls");
     }
   };
 

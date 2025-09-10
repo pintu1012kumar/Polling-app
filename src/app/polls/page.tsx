@@ -1,8 +1,10 @@
+// src/app/polls/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface Poll {
   id: string;
@@ -19,10 +21,34 @@ interface Poll {
 export default function PollsPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [selectedOption, setSelectedOption] = useState<Record<string, string>>({});
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  const router = useRouter();
+
+  // Authentication check useEffect
   useEffect(() => {
-    fetchPolls();
-  }, []);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+      } else {
+        fetchPolls();
+      }
+      setIsAuthLoading(false);
+    };
+
+    checkAuth();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        router.push("/login");
+      }
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, [router]);
 
   const fetchPolls = async () => {
     const { data, error } = await supabase
@@ -49,6 +75,15 @@ export default function PollsPage() {
       setSelectedOption((prev) => ({ ...prev, [pollId]: "" }));
     }
   };
+
+  // Render a loading spinner or message while authentication is being checked
+  if (isAuthLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen text-lg">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
