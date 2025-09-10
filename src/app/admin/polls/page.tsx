@@ -1,4 +1,3 @@
-// src/app/admin/polls/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -14,8 +13,25 @@ import {
   Download,
   X,
   RefreshCw,
+  BarChart as BarChartIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Bar,
+  BarChart,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
+// Interfaces for data types
 interface Poll {
   id: string;
   question: string;
@@ -28,7 +44,12 @@ interface Poll {
   created_at: string;
 }
 
-export default function PollsPage() {
+interface PollResult {
+  name: string;
+  votes: number;
+}
+
+export default function AdminPollsPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", "", "", ""]);
@@ -40,44 +61,36 @@ export default function PollsPage() {
   const [modalTitle, setModalTitle] = useState<string>("");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // State for the poll results modal
+  const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
+  const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+  const [pollResults, setPollResults] = useState<PollResult[]>([]);
+  const [isResultsLoading, setIsResultsLoading] = useState(false);
+
   const router = useRouter();
 
-  // Authentication and role check useEffect
+  // Authentication and role check
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
-      } else {
-        // Fetch user role
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-
-        if (userError || !userData) {
-          alert("Failed to fetch user role");
-          router.push("/login");
-          return;
-        }
-
-        if (userData.role === "user") {
-          router.push("/polls");
-        } else if (userData.role === "admin") {
-          fetchPolls();
-        } else {
-          alert("Unknown user role");
-          router.push("/login");
-        }
+        return;
       }
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+      if (userError || !userData || userData.role !== "admin") {
+        alert("Access Denied: Admins only.");
+        router.push("/login");
+        return;
+      }
+      fetchPolls();
       setIsAuthLoading(false);
     };
-
     checkAuth();
-
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!session) {
@@ -85,12 +98,12 @@ export default function PollsPage() {
         }
       }
     );
-
     return () => {
       listener.subscription.unsubscribe();
     };
   }, [router]);
 
+  // Fetches all polls for the admin dashboard
   const fetchPolls = async () => {
     const { data, error } = await supabase
       .from("polls")
@@ -100,38 +113,62 @@ export default function PollsPage() {
     else setPolls(data || []);
   };
 
+  const handleShowResults = async (poll: Poll) => {
+    setSelectedPoll(poll);
+    setIsResultsModalOpen(true);
+    setIsResultsLoading(true);
+
+    const { data: responses, error } = await supabase
+      .from("poll_responses")
+      .select("selected_option")
+      .eq("poll_id", poll.id);
+
+    if (error) {
+      console.error("Error fetching poll results:", error);
+      setIsResultsLoading(false);
+      return;
+    }
+
+    const voteCounts = responses.reduce((acc, current) => {
+      acc[current.selected_option] = (acc[current.selected_option] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const chartData = [poll.option1, poll.option2, poll.option3, poll.option4].map((option) => ({
+      name: option,
+      votes: voteCounts[option] || 0,
+    }));
+
+    setPollResults(chartData);
+    setIsResultsLoading(false);
+  };
+
   const handleSavePoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) {
       alert("Please fill in the question and all 4 options.");
       return;
     }
     setLoading(true);
-
     let fileUrl: string | null = null;
     let fileType: string | null = null;
-
     if (file) {
       try {
         const ext = file.name.split(".").pop();
         const uniqueName = `${crypto.randomUUID()}.${ext}`;
         const filePath = `polls/${uniqueName}`;
-
         const { error: uploadError } = await supabase.storage
           .from("poll-files")
           .upload(filePath, file);
         if (uploadError) throw uploadError;
-
         const { data } = supabase.storage
           .from("poll-files")
           .getPublicUrl(filePath);
-
         fileUrl = data.publicUrl;
         fileType = file.type;
       } catch (err) {
         console.error("File upload failed:", err);
       }
     }
-
     if (editingId) {
       const { error } = await supabase.from("polls").upsert({
         id: editingId,
@@ -166,11 +203,13 @@ export default function PollsPage() {
         fetchPolls();
       }
     }
-
     setLoading(false);
   };
 
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
+    if (!confirm("Are you sure you want to delete this poll? This action cannot be undone.")) {
+      return;
+    }
     try {
       if (fileUrl) {
         const filePath = fileUrl.split("/poll-files/")[1];
@@ -352,21 +391,31 @@ export default function PollsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 md:self-start">
+                    {/* New "Show Results" button */}
                     <Button
-                      onClick={() => handleEditPoll(poll)}
-                      className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-1"
+                      variant="ghost"
+                      size="sm"
+                      className="p-0 text-gray-500 hover:text-purple-500"
+                      onClick={() => handleShowResults(poll)}
                     >
-                      <Pencil size={18} />
-                      <span>Edit</span>
+                      <BarChartIcon size={18} />
                     </Button>
                     <Button
-                      variant="destructive"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditPoll(poll)}
+                      className="p-0 text-gray-500 hover:text-blue-500"
+                    >
+                      <Pencil size={18} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleDeletePoll(poll.id, poll.file_url)}
-                      className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl flex items-center space-x-1"
+                      className="p-0 text-gray-500 hover:text-red-500"
                     >
                       <Trash2 size={18} />
-                      <span>Delete</span>
                     </Button>
                   </div>
                 </li>
@@ -379,6 +428,7 @@ export default function PollsPage() {
           </ul>
         </div>
       </div>
+      {/* File Viewer Modal (Original) */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
@@ -402,6 +452,33 @@ export default function PollsPage() {
           </div>
         </div>
       )}
+      {/* Poll Results Modal (New) */}
+      <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">
+              Poll Results
+            </DialogTitle>
+            <DialogDescription className="text-gray-800 font-semibold">{selectedPoll?.question}</DialogDescription>
+          </DialogHeader>
+          {isResultsLoading ? (
+            <div className="flex justify-center items-center h-48">
+              Loading results...
+            </div>
+          ) : (
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pollResults} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
+                  <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" height={50} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="votes" fill="#3b82f6" name="Votes" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
