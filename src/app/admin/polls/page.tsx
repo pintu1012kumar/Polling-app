@@ -250,6 +250,24 @@ export default function AdminPollsPage() {
       setModalContent("Failed to extract text.");
     }
   };
+  
+  // New function to handle the direct file download
+  const handleDirectDownload = async (fileUrl: string) => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const filename = fileUrl.split('/').pop();
+      const a = document.createElement('a');
+      a.href = window.URL.createObjectURL(blob);
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading the file:', error);
+      alert('Failed to download the file.');
+    }
+  };
 
   if (isAuthLoading) {
     return (
@@ -371,14 +389,16 @@ export default function AdminPollsPage() {
                     </ul>
                     {poll.file_url && (
                       <div className="flex space-x-2 items-center mt-3">
-                        <a
-                          href={poll.file_url}
-                          download
-                          className="flex items-center space-x-1 text-blue-600 hover:underline font-medium"
+                        {/* Download Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDirectDownload(poll.file_url!)}
+                          className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
                         >
                           <Download size={18} />
                           <span>Download File</span>
-                        </a>
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
