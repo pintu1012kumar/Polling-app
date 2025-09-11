@@ -98,6 +98,8 @@ export default function AdminPollsPage() {
     fileUrl?: string;
   } | null>(null);
 
+  const [isModalContentLoading, setIsModalContentLoading] = useState(false); // New state for modal loading
+
   const router = useRouter();
 
   // Helper function to show alerts
@@ -323,13 +325,16 @@ export default function AdminPollsPage() {
     if (!poll.file_url || !poll.file_type) return;
     setModalTitle(`Extracted Text for: ${poll.question}`);
     setShowModal(true);
-    setModalContent("Loading...");
+    setIsModalContentLoading(true); // Set loading to true
+    setModalContent(""); // Clear previous content
     try {
       const html = await convertFileUrlToHtml(poll.file_url, poll.file_type);
       setModalContent(html);
     } catch (err) {
       setModalContent("Failed to extract text.");
       showAlert("Error", "Failed to extract text from the file.", "destructive");
+    } finally {
+      setIsModalContentLoading(false); // Set loading to false when done
     }
   };
 
@@ -354,7 +359,7 @@ export default function AdminPollsPage() {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-100">
         <div className="flex flex-col items-center">
-          <RefreshCw className="h-10 w-10 text-blue-500 animate-spin" />
+          <RefreshCw className="h-10 w-10 text-black animate-spin" />
           <span className="mt-4 text-xl font-medium text-gray-700">
             Loading...
           </span>
@@ -563,47 +568,45 @@ export default function AdminPollsPage() {
       </div>
 
       {/* File Viewer Modal */}
-{showModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-    {/* Overlay */}
-    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 
-    {/* Modal container */}
-    <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden">
-      
-      {/* Scrollable area */}
-      <div className="overflow-y-auto max-h-[90vh]">
-        
-        {/* ✅ Sticky Header with Close Button (compact, no border/line) */}
-        <div className="sticky top-0 bg-white flex justify-end p-2 z-10">
-          <button
-            onClick={() => setShowModal(false)}
-            className="p-1.5  text-gray-600 
-                       hover:bg-gray-200 hover:text-gray-800 transition-colors 
-                       focus:outline-none focus:ring-2 focus:ring-gray-300"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
+          {/* Modal container */}
+          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden">
+            
+            {/* Sticky Header with Title + Close Button */}
+            <div className="sticky top-0 bg-white flex justify-between items-center p-4 border-b z-10">
+              <h2 className="text-xl font-bold text-gray-800">
+                {modalTitle}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close modal"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Conditional Content based on loading state */}
+            {isModalContentLoading ? (
+              <div className="flex justify-center items-center h-[50vh]">
+                <RefreshCw className="h-10 w-10 text-blue-500 animate-spin" />
+              </div>
+            ) : (
+              // Scrollable Content
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-70px)]">
+                <div
+                  className="prose max-w-none text-gray-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: modalContent }}
+                />
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Content */}
-        <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">
-            {modalTitle}
-          </h2>
-          <div
-            className="prose max-w-none text-gray-700 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: modalContent }}
-          />
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-
-
+      )}
 
       {/* Poll Results Modal */}
       <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
@@ -647,7 +650,6 @@ export default function AdminPollsPage() {
               Cancel
             </Button>
             <Button
-              variant="destructive"
               onClick={() => {
                 if (pollToDelete) {
                   handleDeletePoll(pollToDelete.id, pollToDelete.fileUrl);
@@ -656,7 +658,7 @@ export default function AdminPollsPage() {
                 }
               }}
             >
-              Continue
+              Delete
             </Button>
           </div>
         </DialogContent>
