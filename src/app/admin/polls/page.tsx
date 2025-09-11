@@ -372,7 +372,7 @@ export default function AdminPollsPage() {
     <div className="min-h-screen bg-gray-100 p-8">
       {/* Shadcn Alert */}
       {alert.show && (
-        <div className="fixed top-4 right-4 z-[9999]">
+        <div className="fixed bottom-4 right-4 z-[9999]">
           <Alert variant={alert.variant} className="w-[300px]">
             <Terminal className="h-4 w-4" />
             <AlertTitle>{alert.title}</AlertTitle>

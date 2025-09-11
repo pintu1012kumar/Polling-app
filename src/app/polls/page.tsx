@@ -278,7 +278,7 @@ export default function PollsPage() {
     <div className="p-4 max-w-xl mx-auto">
       {/* Shadcn Alert */}
       {alert.show && (
-        <div className="fixed top-4 right-4 z-[9999]">
+        <div className="fixed bottom-4 right-4 z-[9999]">
           <Alert variant={alert.variant} className="w-[300px]">
             <Terminal className="h-4 w-4" />
             <AlertTitle>{alert.title}</AlertTitle>
