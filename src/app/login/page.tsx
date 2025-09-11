@@ -107,7 +107,7 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen">
       {alert.show && (
-        <div className="fixed top-4 right-4 z-[9999]">
+        <div className="fixed bottom-4 right-4 z-[9999]">
           <Alert variant={alert.variant} className="w-[300px]">
             <Terminal className="h-4 w-4" />
             <AlertTitle>{alert.title}</AlertTitle>

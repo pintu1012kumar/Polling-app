@@ -372,7 +372,7 @@ export default function AdminPollsPage() {
     <div className="min-h-screen bg-gray-100 p-8">
       {/* Shadcn Alert */}
       {alert.show && (
-        <div className="fixed top-4 right-4 z-[9999]">
+        <div className="fixed bottom-4 right-4 z-[9999]">
           <Alert variant={alert.variant} className="w-[300px]">
             <Terminal className="h-4 w-4" />
             <AlertTitle>{alert.title}</AlertTitle>
@@ -593,7 +593,7 @@ export default function AdminPollsPage() {
             {/* Conditional Content based on loading state */}
             {isModalContentLoading ? (
               <div className="flex justify-center items-center h-[50vh]">
-                <RefreshCw className="h-10 w-10 text-blue-500 animate-spin" />
+                <RefreshCw className="h-10 w-10 text-black animate-spin" />
               </div>
             ) : (
               // Scrollable Content
