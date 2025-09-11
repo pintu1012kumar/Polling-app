@@ -593,7 +593,7 @@ export default function AdminPollsPage() {
             {/* Conditional Content based on loading state */}
             {isModalContentLoading ? (
               <div className="flex justify-center items-center h-[50vh]">
-                <RefreshCw className="h-10 w-10 text-blue-500 animate-spin" />
+                <RefreshCw className="h-10 w-10 text-black animate-spin" />
               </div>
             ) : (
               // Scrollable Content
