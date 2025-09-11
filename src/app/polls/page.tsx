@@ -4,8 +4,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { CheckCheck } from "lucide-react";
-import { PollResultsModal } from "@/components/polls/PollResultsModal"; // Import the new component
+import { CheckCheck, Download, FileText, X } from "lucide-react";
+import { PollResultsModal } from "@/components/polls/PollResultsModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { convertFileUrlToHtml } from "@/lib/fileExtractor";
 
 interface Poll {
   id: string;
@@ -25,10 +32,13 @@ export default function PollsPage() {
   const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [userVotes, setUserVotes] = useState<Record<string, string>>({});
-
-  // State for the modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+
+  // New state for the file viewer modal
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [fileModalContent, setFileModalContent] = useState<string>("Loading...");
+  const [fileModalTitle, setFileModalTitle] = useState<string>("");
 
   const router = useRouter();
 
@@ -148,6 +158,40 @@ export default function PollsPage() {
     setSelectedPoll(null);
   };
 
+  const handleViewFile = async (poll: Poll) => {
+    if (!poll.file_url || !poll.file_type) return;
+    setShowFileModal(true);
+    setFileModalTitle(`Description for: ${poll.question}`);
+    setFileModalContent("Loading...");
+    if (poll.file_type.startsWith('image/')) {
+      setFileModalContent(`<img src="${poll.file_url}" alt="Poll description" class="w-full h-auto object-contain rounded-md" />`);
+    } else {
+      try {
+        const html = await convertFileUrlToHtml(poll.file_url, poll.file_type);
+        setFileModalContent(html);
+      } catch (err) {
+        setFileModalContent("Failed to extract text.");
+      }
+    }
+  };
+
+  const handleDirectDownload = async (fileUrl: string) => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const filename = fileUrl.split('/').pop();
+      const a = document.createElement('a');
+      a.href = window.URL.createObjectURL(blob);
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading the file:', error);
+      alert('Failed to download the file.');
+    }
+  };
+
   if (isAuthLoading) {
     return (
       <div className="flex justify-center items-center h-screen text-lg">
@@ -207,6 +251,29 @@ export default function PollsPage() {
                 })}
               </div>
 
+              {poll.file_url && (
+                <div className="flex space-x-2 items-center mt-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDirectDownload(poll.file_url!)}
+                    className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                  >
+                    <Download size={18} />
+                    <span>Download File</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewFile(poll)}
+                    className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                  >
+                    <FileText size={18} />
+                    <span>View File</span>
+                  </Button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
                 {!hasVoted && (
                   <Button className="flex-1" onClick={() => handleVote(poll.id)}>
@@ -229,6 +296,29 @@ export default function PollsPage() {
           isOpen={isModalOpen}
           onClose={closeResultsModal}
         />
+      )}
+      {showFileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl p-6 overflow-hidden">
+            <button
+              onClick={() => setShowFileModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-20"
+              aria-label="Close modal"
+            >
+              <X size={28} />
+            </button>
+            <div className="overflow-y-auto max-h-[calc(90vh-3rem)] pr-4">
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">
+                {fileModalTitle}
+              </h2>
+              <div
+                className="prose max-w-none text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: fileModalContent }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
