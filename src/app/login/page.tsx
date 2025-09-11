@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
 
 const FormSchema = z.object({
   email: z.string().email(),
@@ -32,6 +34,29 @@ const FormSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
+
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    title: string;
+    description: string;
+    variant: "default" | "destructive";
+  }>({
+    show: false,
+    title: "",
+    description: "",
+    variant: "default",
+  });
+
+  const showAlert = (
+    title: string,
+    description: string,
+    variant: "default" | "destructive" = "default"
+  ) => {
+    setAlert({ show: true, title, description, variant });
+    setTimeout(() => {
+      setAlert((prev) => ({ ...prev, show: false }));
+    }, 5000); // Alert disappears after 5 seconds
+  };
 
   useEffect(() => {
     const checkUser = async () => {
@@ -51,9 +76,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      alert("Login failed: " + error.message);
+      showAlert("Login Failed", error.message, "destructive");
     } else {
-      // Fetch user role after successful login
+      showAlert("Success", "Login successful!", "default");
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: userData, error: userError } = await supabase
@@ -63,7 +89,7 @@ export default function LoginPage() {
           .single();
 
         if (userError || !userData) {
-          alert("Failed to fetch user role");
+          showAlert("Error", "Failed to fetch user role.", "destructive");
           return;
         }
 
@@ -72,7 +98,7 @@ export default function LoginPage() {
         } else if (userData.role === "user") {
           router.push("/polls");
         } else {
-          alert("Unknown user role");
+          showAlert("Error", "Unknown user role.", "destructive");
         }
       }
     }
@@ -80,6 +106,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
+      {alert.show && (
+        <div className="fixed top-4 right-4 z-[9999]">
+          <Alert variant={alert.variant} className="w-[300px]">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>{alert.title}</AlertTitle>
+            <AlertDescription>{alert.description}</AlertDescription>
+          </Alert>
+        </div>
+      )}
       <Card className="w-[350px]">
         <CardHeader>
           <CardTitle>Log In</CardTitle>

@@ -13,6 +13,7 @@ import {
   X,
   RefreshCw,
   BarChart as BarChartIcon,
+  Terminal,
 } from "lucide-react";
 import {
   Dialog,
@@ -39,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Interfaces for data types
 interface Poll {
@@ -76,12 +78,52 @@ export default function AdminPollsPage() {
   const [pollResults, setPollResults] = useState<PollResult[]>([]);
   const [isResultsLoading, setIsResultsLoading] = useState(false);
 
+  // State for shadcn alert
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    title: string;
+    description: string;
+    variant: "default" | "destructive";
+  }>({
+    show: false,
+    title: "",
+    description: "",
+    variant: "default",
+  });
+
+  // State for shadcn delete confirmation dialog
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pollToDelete, setPollToDelete] = useState<{
+    id: string;
+    fileUrl?: string;
+  } | null>(null);
+
   const router = useRouter();
+
+  // Helper function to show alerts
+  const showAlert = (
+    title: string,
+    description: string,
+    variant: "default" | "destructive" = "default"
+  ) => {
+    setAlert({ show: true, title, description, variant });
+    setTimeout(() => {
+      setAlert((prev) => ({ ...prev, show: false }));
+    }, 5000); // Alert disappears after 5 seconds
+  };
+
+  // Helper function to handle delete confirmation
+  const confirmDeletePoll = (id: string, fileUrl?: string) => {
+    setPollToDelete({ id, fileUrl });
+    setShowDeleteConfirm(true);
+  };
 
   // Authentication and role check
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
         return;
@@ -92,7 +134,11 @@ export default function AdminPollsPage() {
         .eq("id", session.user.id)
         .single();
       if (userError || !userData || userData.role !== "admin") {
-        alert("Access Denied: Admins only.");
+        showAlert(
+          "Access Denied",
+          "You do not have permission to view this page.",
+          "destructive"
+        );
         router.push("/login");
         return;
       }
@@ -118,8 +164,12 @@ export default function AdminPollsPage() {
       .from("polls")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) console.error("Error fetching polls:", error.message);
-    else setPolls(data || []);
+    if (error) {
+      console.error("Error fetching polls:", error.message);
+      showAlert("Error", "Failed to fetch polls.", "destructive");
+    } else {
+      setPolls(data || []);
+    }
   };
 
   const handleShowResults = async (poll: Poll) => {
@@ -134,6 +184,7 @@ export default function AdminPollsPage() {
 
     if (error) {
       console.error("Error fetching poll results:", error);
+      showAlert("Error", "Failed to fetch poll results.", "destructive");
       setIsResultsLoading(false);
       return;
     }
@@ -143,7 +194,12 @@ export default function AdminPollsPage() {
       return acc;
     }, {} as Record<string, number>);
 
-    const chartData = [poll.option1, poll.option2, poll.option3, poll.option4].map((option) => ({
+    const chartData = [
+      poll.option1,
+      poll.option2,
+      poll.option3,
+      poll.option4,
+    ].map((option) => ({
       name: option,
       votes: voteCounts[option] || 0,
     }));
@@ -154,7 +210,11 @@ export default function AdminPollsPage() {
 
   const handleSavePoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) {
-      alert("Please fill in the question and all 4 options.");
+      showAlert(
+        "Validation Error",
+        "Please fill in the question and all 4 options.",
+        "destructive"
+      );
       return;
     }
     setLoading(true);
@@ -176,6 +236,13 @@ export default function AdminPollsPage() {
         fileType = file.type;
       } catch (err) {
         console.error("File upload failed:", err);
+        showAlert(
+          "Error",
+          "File upload failed. Please try again.",
+          "destructive"
+        );
+        setLoading(false);
+        return;
       }
     }
     if (editingId) {
@@ -189,8 +256,11 @@ export default function AdminPollsPage() {
         ...(fileUrl && { file_url: fileUrl }),
         ...(fileType && { file_type: fileType }),
       });
-      if (error) console.error("Error updating poll:", error.message);
-      else {
+      if (error) {
+        console.error("Error updating poll:", error.message);
+        showAlert("Error", "Failed to update poll.", "destructive");
+      } else {
+        showAlert("Success", "Poll updated successfully.", "default");
         resetForm();
         fetchPolls();
       }
@@ -206,8 +276,11 @@ export default function AdminPollsPage() {
           file_type: fileType,
         },
       ]);
-      if (error) console.error("Error creating poll:", error.message);
-      else {
+      if (error) {
+        console.error("Error creating poll:", error.message);
+        showAlert("Error", "Failed to create poll.", "destructive");
+      } else {
+        showAlert("Success", "Poll created successfully.", "default");
         resetForm();
         fetchPolls();
       }
@@ -216,9 +289,6 @@ export default function AdminPollsPage() {
   };
 
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
-    if (!confirm("Are you sure you want to delete this poll? This action cannot be undone.")) {
-      return;
-    }
     try {
       if (fileUrl) {
         const filePath = fileUrl.split("/poll-files/")[1];
@@ -227,9 +297,11 @@ export default function AdminPollsPage() {
         }
       }
       await supabase.from("polls").delete().eq("id", id);
+      showAlert("Success", "Poll deleted successfully.", "default");
       fetchPolls();
     } catch (err) {
       console.error("Unexpected error deleting poll:", err);
+      showAlert("Error", "Failed to delete poll.", "destructive");
     }
   };
 
@@ -257,9 +329,10 @@ export default function AdminPollsPage() {
       setModalContent(html);
     } catch (err) {
       setModalContent("Failed to extract text.");
+      showAlert("Error", "Failed to extract text from the file.", "destructive");
     }
   };
-  
+
   const handleDirectDownload = async (fileUrl: string) => {
     try {
       const response = await fetch(fileUrl);
@@ -273,7 +346,7 @@ export default function AdminPollsPage() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading the file:', error);
-      alert('Failed to download the file.');
+      showAlert("Error", "Failed to download the file.", "destructive");
     }
   };
 
@@ -292,6 +365,17 @@ export default function AdminPollsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
+      {/* Shadcn Alert */}
+      {alert.show && (
+        <div className="fixed top-4 right-4 z-[9999]">
+          <Alert variant={alert.variant} className="w-[300px]">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>{alert.title}</AlertTitle>
+            <AlertDescription>{alert.description}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Form Card */}
         <Card className="md:col-span-1 h-fit sticky top-8">
@@ -337,7 +421,7 @@ export default function AdminPollsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="file">Description File</Label>
-                <div className="relative border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200">
+                <div className="relative border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-black transition-colors duration-200">
                   <Input
                     id="file"
                     type="file"
@@ -399,38 +483,29 @@ export default function AdminPollsPage() {
             <ul className="space-y-6">
               {polls.length > 0 ? (
                 polls.map((poll) => (
-                  <li
-                    key={poll.id}
-                    className="p-6 rounded-xl shadow-lg border border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center"
-                  >
-                    <div className="flex-1 mb-4 md:mb-0">
-                      <h3 className="font-bold text-xl mb-2 text-gray-800">
+                  <Card key={poll.id} className="p-6">
+                    <CardHeader className="p-0 mb-0 flex-row justify-between items-center">
+                      <CardTitle className="text-xl font-bold">
                         {poll.question}
-                      </h3>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
                       <ul className="list-disc ml-5 text-gray-700 space-y-1">
                         <li>{poll.option1}</li>
                         <li>{poll.option2}</li>
                         <li>{poll.option3}</li>
                         <li>{poll.option4}</li>
                       </ul>
-                      {poll.file_url && (
-                        <div className="mt-4">
-                          {poll.file_type && poll.file_type.startsWith('image/') ? (
-                            <div className="mt-3">
-                              <p className="text-sm font-medium text-gray-600 mb-2">Attached Image:</p>
-                              <img
-                                src={poll.file_url}
-                                alt="Poll description image"
-                                className="max-w-xs max-h-48 rounded-md border border-gray-300"
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex space-x-2 items-center mt-3">
+                      
+                      <div className="mt-4 flex justify-between items-center">
+                        <div className="flex space-x-2">
+                          {poll.file_url && (
+                            <>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDirectDownload(poll.file_url!)}
-                                className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                                className="flex items-center space-x-1"
                               >
                                 <Download size={18} />
                                 <span>Download File</span>
@@ -439,43 +514,43 @@ export default function AdminPollsPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleViewExtractedText(poll)}
-                                className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                                className="flex items-center space-x-1"
                               >
                                 <FileText size={18} />
                                 <span>View File</span>
                               </Button>
-                            </div>
+                            </>
                           )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex space-x-2 md:self-start">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-0 text-gray-500 hover:text-purple-500"
-                        onClick={() => handleShowResults(poll)}
-                      >
-                        <BarChartIcon size={18} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditPoll(poll)}
-                        className="p-0 text-gray-500 hover:text-blue-500"
-                      >
-                        <Pencil size={18} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePoll(poll.id, poll.file_url)}
-                        className="p-0 text-gray-500 hover:text-red-500"
-                      >
-                        <Trash2 size={18} />
-                      </Button>
-                    </div>
-                  </li>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 text-gray-500 hover:text-black"
+                            onClick={() => handleShowResults(poll)}
+                          >
+                            <BarChartIcon size={18} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditPoll(poll)}
+                            className="p-0 text-gray-500 hover:text-black"
+                          >
+                            <Pencil size={18} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => confirmDeletePoll(poll.id, poll.file_url)}
+                            className="p-0 text-gray-500 hover:text-black"
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))
               ) : (
                 <p className="text-center text-gray-500 text-lg">
@@ -486,29 +561,51 @@ export default function AdminPollsPage() {
           </CardContent>
         </Card>
       </div>
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl p-6 overflow-hidden">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-20"
-              aria-label="Close modal"
-            >
-              <X size={28} />
-            </button>
-            <div className="overflow-y-auto max-h-[calc(90vh-3rem)] pr-4">
-              <h2 className="text-2xl font-bold mb-4 text-gray-800">
-                {modalTitle}
-              </h2>
-              <div
-                className="prose max-w-none text-gray-700 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: modalContent }}
-              />
-            </div>
-          </div>
+
+      {/* File Viewer Modal */}
+{showModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    {/* Overlay */}
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+    {/* Modal container */}
+    <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden">
+      
+      {/* Scrollable area */}
+      <div className="overflow-y-auto max-h-[90vh]">
+        
+        {/* ✅ Sticky Header with Close Button (compact, no border/line) */}
+        <div className="sticky top-0 bg-white flex justify-end p-2 z-10">
+          <button
+            onClick={() => setShowModal(false)}
+            className="p-1.5  text-gray-600 
+                       hover:bg-gray-200 hover:text-gray-800 transition-colors 
+                       focus:outline-none focus:ring-2 focus:ring-gray-300"
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
         </div>
-      )}
+
+        {/* Content */}
+        <div className="p-6">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">
+            {modalTitle}
+          </h2>
+          <div
+            className="prose max-w-none text-gray-700 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: modalContent }}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
+      {/* Poll Results Modal */}
       <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
@@ -533,6 +630,35 @@ export default function AdminPollsPage() {
               </ResponsiveContainer>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you absolutely sure?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the poll.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pollToDelete) {
+                  handleDeletePoll(pollToDelete.id, pollToDelete.fileUrl);
+                  setPollToDelete(null);
+                  setShowDeleteConfirm(false);
+                }
+              }}
+            >
+              Continue
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
