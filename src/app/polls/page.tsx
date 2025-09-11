@@ -4,22 +4,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Download, FileText, X, TrendingUp } from "lucide-react";
+import { CheckCheck, Download, FileText, X } from "lucide-react";
 import { PollResultsModal } from "@/components/polls/PollResultsModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { convertFileUrlToHtml } from "@/lib/fileExtractor";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { convertFileUrlToHtml } from "@/lib/fileExtractor";
 
 interface Poll {
   id: string;
@@ -147,9 +141,9 @@ export default function PollsPage() {
       alert("Failed to submit vote. Please try again.");
     } else {
       alert("Vote submitted successfully!");
-      setVotedPolls((prev) => new Set(prev).add(pollId));
-      setUserVotes((prev) => ({ ...prev, [pollId]: selectedOption[pollId] }));
-      setSelectedOption((prev) => ({ ...prev, [pollId]: "" }));
+      setVotedPolls((prev: Set<string>) => new Set(prev).add(pollId));
+      setUserVotes((prev: Record<string, string>) => ({ ...prev, [pollId]: selectedOption[pollId] }));
+      setSelectedOption((prev: Record<string, string>) => ({ ...prev, [pollId]: "" }));
     }
   };
 
@@ -206,27 +200,27 @@ export default function PollsPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-center">Available Polls</h1>
-      <div className="space-y-8">
+    <div className="p-4 max-w-xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Available Polls</h1>
+      <div className="space-y-6">
         {polls.map((poll) => {
           const hasVoted = votedPolls.has(poll.id);
           const votedOption = userVotes[poll.id];
 
           return (
-            <Card key={poll.id} className="p-6">
-              <CardHeader className="p-0 mb-4">
-                <CardTitle className="flex justify-between items-center text-xl font-semibold text-gray-800">
+            <Card key={poll.id} className="p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
+              <CardHeader className="p-0 mb-3">
+                <CardTitle className="flex justify-between items-center text-lg font-semibold text-gray-800">
                   <span>{poll.question}</span>
                   {hasVoted && (
-                    <div className="flex items-center text-green-500 font-medium text-sm">
-                      <CheckCheck className="w-5 h-5 mr-1" /> Voted
+                    <div className="flex items-center text-black font-medium text-sm">
+                      <CheckCheck className="w-4 h-4 mr-1" /> Voted
                     </div>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-2">
                   {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
                     const isSelected = selectedOption[poll.id] === opt;
                     const isVotedOption = hasVoted && votedOption === opt;
@@ -235,22 +229,23 @@ export default function PollsPage() {
                       <button
                         key={idx}
                         className={`
-                          w-full p-4 rounded-lg text-left transition-colors duration-200
-                          ${hasVoted 
-                            ? 'bg-gray-100 cursor-not-allowed' 
-                            : isSelected 
-                              ? 'bg-blue-100 border-2 border-blue-500 text-blue-800' 
+                          w-full p-3 rounded-md text-sm text-left transition-colors duration-200
+                          ${hasVoted
+                            ? isVotedOption
+                              ? 'bg-gray-50 cursor-not-allowed'
+                              : 'bg-gray-50 cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-grey-100 border-1 border-black text-black'
                               : 'bg-gray-50 hover:bg-gray-100'
                           }
-                          ${isVotedOption ? 'border-2 border-green-500 bg-green-50' : ''}
                         `}
-                        onClick={() => !hasVoted && setSelectedOption(prev => ({ ...prev, [poll.id]: opt }))}
+                        onClick={() => !hasVoted && setSelectedOption((prev: Record<string, string>) => ({ ...prev, [poll.id]: opt }))}
                         disabled={hasVoted}
                       >
                         <div className="flex items-center justify-between">
                           <span>{opt}</span>
                           {isVotedOption && (
-                            <CheckCheck className="text-green-600 w-5 h-5 ml-2" />
+                            <CheckCheck className="text-black w-4 h-4 ml-2" />
                           )}
                         </div>
                       </button>
@@ -259,37 +254,38 @@ export default function PollsPage() {
                 </div>
 
                 {poll.file_url && (
-                  <div className="flex space-x-2 items-center mt-4">
+                  <div className="flex space-x-2 items-center mt-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDirectDownload(poll.file_url!)}
-                      className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                      className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
                     >
-                      <Download size={18} />
+                      <Download size={16} />
                       <span>Download File</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleViewFile(poll)}
-                      className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                      className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
                     >
-                      <FileText size={18} />
+                      <FileText size={16} />
                       <span>View File</span>
                     </Button>
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
-                  {!hasVoted && (
-                    <Button className="flex-1" onClick={() => handleVote(poll.id)}>
+                <div className="flex justify-between items-center mt-4">
+                 
+                  <Button  onClick={() => openResultsModal(poll)}>
+                    Show Results
+                  </Button>
+                   {!hasVoted && (
+                    <Button>
                       Submit Vote
                     </Button>
                   )}
-                  <Button variant="outline" className="flex-1" onClick={() => openResultsModal(poll)}>
-                    Show Results
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -330,4 +326,4 @@ export default function PollsPage() {
       )}
     </div>
   );
-} 
+}
