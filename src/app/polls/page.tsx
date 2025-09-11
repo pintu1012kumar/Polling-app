@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Download, FileText, X } from "lucide-react";
+import { CheckCheck, Download, FileText, X, TrendingUp } from "lucide-react";
 import { PollResultsModal } from "@/components/polls/PollResultsModal";
 import {
   Dialog,
@@ -13,6 +13,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { convertFileUrlToHtml } from "@/lib/fileExtractor";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface Poll {
   id: string;
@@ -34,8 +41,6 @@ export default function PollsPage() {
   const [userVotes, setUserVotes] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
-
-  // New state for the file viewer modal
   const [showFileModal, setShowFileModal] = useState(false);
   const [fileModalContent, setFileModalContent] = useState<string>("Loading...");
   const [fileModalTitle, setFileModalTitle] = useState<string>("");
@@ -209,82 +214,85 @@ export default function PollsPage() {
           const votedOption = userVotes[poll.id];
 
           return (
-            <div key={poll.id} className="bg-white border rounded-xl shadow-lg p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">{poll.question}</h2>
-                {hasVoted && (
-                  <div className="flex items-center text-green-500 font-medium text-sm">
-                    <CheckCheck className="w-5 h-5 mr-1" /> Voted
+            <Card key={poll.id} className="p-6">
+              <CardHeader className="p-0 mb-4">
+                <CardTitle className="flex justify-between items-center text-xl font-semibold text-gray-800">
+                  <span>{poll.question}</span>
+                  {hasVoted && (
+                    <div className="flex items-center text-green-500 font-medium text-sm">
+                      <CheckCheck className="w-5 h-5 mr-1" /> Voted
+                    </div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
+                    const isSelected = selectedOption[poll.id] === opt;
+                    const isVotedOption = hasVoted && votedOption === opt;
+
+                    return (
+                      <button
+                        key={idx}
+                        className={`
+                          w-full p-4 rounded-lg text-left transition-colors duration-200
+                          ${hasVoted 
+                            ? 'bg-gray-100 cursor-not-allowed' 
+                            : isSelected 
+                              ? 'bg-blue-100 border-2 border-blue-500 text-blue-800' 
+                              : 'bg-gray-50 hover:bg-gray-100'
+                          }
+                          ${isVotedOption ? 'border-2 border-green-500 bg-green-50' : ''}
+                        `}
+                        onClick={() => !hasVoted && setSelectedOption(prev => ({ ...prev, [poll.id]: opt }))}
+                        disabled={hasVoted}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{opt}</span>
+                          {isVotedOption && (
+                            <CheckCheck className="text-green-600 w-5 h-5 ml-2" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {poll.file_url && (
+                  <div className="flex space-x-2 items-center mt-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDirectDownload(poll.file_url!)}
+                      className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Download size={18} />
+                      <span>Download File</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewFile(poll)}
+                      className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                    >
+                      <FileText size={18} />
+                      <span>View File</span>
+                    </Button>
                   </div>
                 )}
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
-                  const isSelected = selectedOption[poll.id] === opt;
-                  const isVotedOption = hasVoted && votedOption === opt;
-                  
-                  return (
-                    <button
-                      key={idx}
-                      className={`
-                        w-full p-4 rounded-lg text-left transition-colors duration-200
-                        ${hasVoted 
-                          ? 'bg-gray-100 cursor-not-allowed' 
-                          : isSelected 
-                            ? 'bg-blue-100 border-2 border-blue-500 text-blue-800' 
-                            : 'bg-gray-50 hover:bg-gray-100'
-                        }
-                        ${isVotedOption ? 'border-2 border-green-500 bg-green-50' : ''}
-                      `}
-                      onClick={() => !hasVoted && setSelectedOption(prev => ({ ...prev, [poll.id]: opt }))}
-                      disabled={hasVoted}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span>{opt}</span>
-                        {isVotedOption && (
-                          <CheckCheck className="text-green-600 w-5 h-5 ml-2" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {poll.file_url && (
-                <div className="flex space-x-2 items-center mt-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDirectDownload(poll.file_url!)}
-                    className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
-                  >
-                    <Download size={18} />
-                    <span>Download File</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewFile(poll)}
-                    className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
-                  >
-                    <FileText size={18} />
-                    <span>View File</span>
+                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
+                  {!hasVoted && (
+                    <Button className="flex-1" onClick={() => handleVote(poll.id)}>
+                      Submit Vote
+                    </Button>
+                  )}
+                  <Button variant="outline" className="flex-1" onClick={() => openResultsModal(poll)}>
+                    Show Results
                   </Button>
                 </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mt-6">
-                {!hasVoted && (
-                  <Button className="flex-1" onClick={() => handleVote(poll.id)}>
-                    Submit Vote
-                  </Button>
-                )}
-                <Button variant="outline" className="flex-1" onClick={() => openResultsModal(poll)}>
-                  Show Results
-                </Button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
@@ -322,4 +330,4 @@ export default function PollsPage() {
       )}
     </div>
   );
-}
+} 
