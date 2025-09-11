@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import LogoutButton from "./LogoutButton"; // Import the new component
+import { Button } from "@/components/ui/button"; // Import the Button component
 
 interface User {
   email: string | undefined;
@@ -44,7 +45,6 @@ export default function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         setUser(null);
-        // The LogoutButton will handle the redirection, so we don't need it here.
       } else if (event === "SIGNED_IN") {
         fetchUser(); // Re-fetch user on sign-in
       }
@@ -53,10 +53,10 @@ export default function Navbar() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, []); // Removed router from dependency array as it's not used here anymore
+  }, []);
 
   return (
-     <nav className="sticky top-0 z-50 text-black bg-gray-100 p-4 flex justify-between items-center ">
+    <nav className="sticky top-0 z-50 text-black bg-gray-100 p-4 flex justify-between items-center ">
       <div className="text-xl font-bold">
         <Link href="/">Polling App</Link>
       </div>
@@ -65,13 +65,16 @@ export default function Navbar() {
           <>
             <span className="text-sm"><strong>User:</strong> {user.email}</span>
             <span className="text-sm"><strong>Role:</strong> {user.role}</span>
-            <LogoutButton /> {/* Use the new component */}
+            <LogoutButton />
           </>
         ) : (
-          <Link href="/login" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">
-            Login
+          <Link href="/login" >
+            <Button>
+              Login
+            </Button>
           </Link>
         )}
+        
       </div>
     </nav>
   );
