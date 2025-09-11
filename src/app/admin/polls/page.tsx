@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
 import { convertFileUrlToHtml } from "@/lib/fileExtractor";
 import { useRouter } from "next/navigation";
 import {
@@ -30,6 +29,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 // Interfaces for data types
 interface Poll {
@@ -251,7 +260,6 @@ export default function AdminPollsPage() {
     }
   };
   
-  // New function to handle the direct file download
   const handleDirectDownload = async (fileUrl: string) => {
     try {
       const response = await fetch(fileUrl);
@@ -286,169 +294,198 @@ export default function AdminPollsPage() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Form Card */}
-        <div className="md:col-span-1 p-6 bg-white rounded-2xl shadow-xl border border-gray-200 h-fit sticky top-8">
-          <h1 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-            {editingId ? "Edit Poll" : "Create New Poll"}
-          </h1>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Enter poll question"
-              value={question}
-              onChange={(e) => {
-                if (e.target.value.length <= 50) {
-                  setQuestion(e.target.value);
-                }
-              }}
-              className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-            />
-            {options.map((opt, idx) => (
-              <input
-                key={idx}
-                type="text"
-                placeholder={`Option ${idx + 1}`}
-                value={opt}
-                onChange={(e) => {
-                  if (e.target.value.length <= 10) {
-                    const newOpts = [...options];
-                    newOpts[idx] = e.target.value;
-                    setOptions(newOpts);
-                  }
-                }}
-                className="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-              />
-            ))}
-            <div className="relative border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200">
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <div className="flex flex-col items-center">
-                <PlusCircle className="h-6 w-6 text-gray-400" />
-                <span className="mt-2 text-sm text-gray-600">
-                  {file ? file.name : "Click to add a file (optional)"}
-                </span>
+        <Card className="md:col-span-1 h-fit sticky top-8">
+          <CardHeader>
+            <CardTitle className="text-center">{editingId ? "Edit Poll" : "Create New Poll"}</CardTitle>
+            <CardDescription className="text-center">
+              Fill out the details to create a new poll.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="question">Poll Question</Label>
+                <Input
+                  id="question"
+                  type="text"
+                  placeholder="Enter poll question"
+                  value={question}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 50) {
+                      setQuestion(e.target.value);
+                    }
+                  }}
+                />
               </div>
-            </div>
-            <Button
-              onClick={handleSavePoll}
-              disabled={loading}
-              className="w-full text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : editingId ? (
-                <>
-                  <Pencil className="h-4 w-4" />
-                  <span>Update Poll</span>
-                </>
-              ) : (
-                <>
-                  <PlusCircle className="h-4 w-4" />
-                  <span>Create Poll</span>
-                </>
-              )}
-            </Button>
-            {editingId && (
+              <div className="space-y-2">
+                <Label>Options</Label>
+                {options.map((opt, idx) => (
+                  <Input
+                    key={idx}
+                    type="text"
+                    placeholder={`Option ${idx + 1}`}
+                    value={opt}
+                    onChange={(e) => {
+                      if (e.target.value.length <= 10) {
+                        const newOpts = [...options];
+                        newOpts[idx] = e.target.value;
+                        setOptions(newOpts);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="file">Description File</Label>
+                <div className="relative border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-blue-500 transition-colors duration-200">
+                  <Input
+                    id="file"
+                    type="file"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center">
+                    <PlusCircle className="h-6 w-6 text-gray-400" />
+                    <span className="mt-2 text-sm text-gray-600">
+                      {file ? file.name : "Click to add a file (optional)"}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <Button
-                variant="secondary"
-                onClick={resetForm}
-                className="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl"
+                onClick={handleSavePoll}
+                disabled={loading}
+                className="w-full"
               >
-                Cancel
+                {loading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : editingId ? (
+                  <>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    <span>Update Poll</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    <span>Create Poll</span>
+                  </>
+                )}
               </Button>
-            )}
-          </div>
-        </div>
+              {editingId && (
+                <Button
+                  variant="secondary"
+                  onClick={resetForm}
+                  className="w-full mt-2"
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Existing Polls Card List */}
-        <div className="md:col-span-2 p-6 bg-white rounded-2xl shadow-xl border border-gray-200">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-            Existing Polls
-          </h2>
-          <ul className="space-y-6">
-            {polls.length > 0 ? (
-              polls.map((poll) => (
-                <li
-                  key={poll.id}
-                  className="p-6 rounded-xl shadow-lg border border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center"
-                >
-                  <div className="flex-1 mb-4 md:mb-0">
-                    <h3 className="font-bold text-xl mb-2 text-gray-800">
-                      {poll.question}
-                    </h3>
-                    <ul className="list-disc ml-5 text-gray-700 space-y-1">
-                      <li>{poll.option1}</li>
-                      <li>{poll.option2}</li>
-                      <li>{poll.option3}</li>
-                      <li>{poll.option4}</li>
-                    </ul>
-                    {poll.file_url && (
-                      <div className="flex space-x-2 items-center mt-3">
-                        {/* Download Button */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDirectDownload(poll.file_url!)}
-                          className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
-                        >
-                          <Download size={18} />
-                          <span>Download File</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewExtractedText(poll)}
-                          className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
-                        >
-                          <FileText size={18} />
-                          <span>View File</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex space-x-2 md:self-start">
-                    {/* New "Show Results" button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-0 text-gray-500 hover:text-purple-500"
-                      onClick={() => handleShowResults(poll)}
-                    >
-                      <BarChartIcon size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditPoll(poll)}
-                      className="p-0 text-gray-500 hover:text-blue-500"
-                    >
-                      <Pencil size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeletePoll(poll.id, poll.file_url)}
-                      className="p-0 text-gray-500 hover:text-red-500"
-                    >
-                      <Trash2 size={18} />
-                    </Button>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <p className="text-center text-gray-500 text-lg">
-                No polls created yet.
-              </p>
-            )}
-          </ul>
-        </div>
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-center">Existing Polls</CardTitle>
+            <CardDescription className="text-center">
+              Manage all created polls.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-6">
+              {polls.length > 0 ? (
+                polls.map((poll) => (
+                  <li
+                    key={poll.id}
+                    className="p-6 rounded-xl shadow-lg border border-gray-200 bg-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center"
+                  >
+                    <div className="flex-1 mb-4 md:mb-0">
+                      <h3 className="font-bold text-xl mb-2 text-gray-800">
+                        {poll.question}
+                      </h3>
+                      <ul className="list-disc ml-5 text-gray-700 space-y-1">
+                        <li>{poll.option1}</li>
+                        <li>{poll.option2}</li>
+                        <li>{poll.option3}</li>
+                        <li>{poll.option4}</li>
+                      </ul>
+                      {poll.file_url && (
+                        <div className="mt-4">
+                          {poll.file_type && poll.file_type.startsWith('image/') ? (
+                            <div className="mt-3">
+                              <p className="text-sm font-medium text-gray-600 mb-2">Attached Image:</p>
+                              <img
+                                src={poll.file_url}
+                                alt="Poll description image"
+                                className="max-w-xs max-h-48 rounded-md border border-gray-300"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex space-x-2 items-center mt-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDirectDownload(poll.file_url!)}
+                                className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                              >
+                                <Download size={18} />
+                                <span>Download File</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewExtractedText(poll)}
+                                className="flex items-center space-x-1 text-blue-600 hover:bg-blue-50"
+                              >
+                                <FileText size={18} />
+                                <span>View File</span>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex space-x-2 md:self-start">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-0 text-gray-500 hover:text-purple-500"
+                        onClick={() => handleShowResults(poll)}
+                      >
+                        <BarChartIcon size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditPoll(poll)}
+                        className="p-0 text-gray-500 hover:text-blue-500"
+                      >
+                        <Pencil size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeletePoll(poll.id, poll.file_url)}
+                        className="p-0 text-gray-500 hover:text-red-500"
+                      >
+                        <Trash2 size={18} />
+                      </Button>
+                    </div>
+                  </li>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 text-lg">
+                  No polls created yet.
+                </p>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
       </div>
-      {/* File Viewer Modal (Original) */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
@@ -472,7 +509,6 @@ export default function AdminPollsPage() {
           </div>
         </div>
       )}
-      {/* Poll Results Modal (New) */}
       <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
