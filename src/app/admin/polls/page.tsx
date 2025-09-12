@@ -424,22 +424,13 @@ export default function AdminPollsPage() {
                   />
                 ))}
               </div>
-              <div className="space-y-2">
+              <div className="grid w-full max-w-sm items-center gap-3">
                 <Label htmlFor="file">Description File</Label>
-                <div className="relative border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-black transition-colors duration-200">
-                  <Input
-                    id="file"
-                    type="file"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                  <div className="flex flex-col items-center">
-                    <PlusCircle className="h-6 w-6 text-gray-400" />
-                    <span className="mt-2 text-sm text-gray-600">
-                      {file ? file.name : "Click to add a file (optional)"}
-                    </span>
-                  </div>
-                </div>
+                <Input
+                  id="file"
+                  type="file"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
               </div>
               <Button
                 onClick={handleSavePoll}
@@ -489,10 +480,24 @@ export default function AdminPollsPage() {
               {polls.length > 0 ? (
                 polls.map((poll) => (
                   <Card key={poll.id} className="p-6">
-                    <CardHeader className="p-0 mb-0 flex-row justify-between items-center">
-                      <CardTitle className="text-xl font-bold">
-                        {poll.question}
-                      </CardTitle>
+                    <CardHeader className="p-0 mb-0">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-xl font-bold">
+                          {poll.question}
+                        </CardTitle>
+                        {/* Description button on the top right */}
+                        {poll.file_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewExtractedText(poll)}
+                            className="flex items-center space-x-1"
+                          >
+                            <FileText size={18} />
+                            <span>Description</span>
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ul className="list-disc ml-5 text-gray-700 space-y-1">
@@ -503,30 +508,22 @@ export default function AdminPollsPage() {
                       </ul>
                       
                       <div className="mt-4 flex justify-between items-center">
+                        {/* Download button on the bottom left */}
                         <div className="flex space-x-2">
                           {poll.file_url && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDirectDownload(poll.file_url!)}
-                                className="flex items-center space-x-1"
-                              >
-                                <Download size={18} />
-                                <span>Download File</span>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewExtractedText(poll)}
-                                className="flex items-center space-x-1"
-                              >
-                                <FileText size={18} />
-                                <span>View File</span>
-                              </Button>
-                            </>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDirectDownload(poll.file_url!)}
+                              className="p-0 text-gray-500 hover:text-black"
+                            >
+                              <Download size={18} />
+                              <span>Download File</span>
+                            </Button>
                           )}
                         </div>
+                        
+                        {/* Remaining buttons on the bottom right */}
                         <div className="flex space-x-2">
                           <Button
                             variant="ghost"

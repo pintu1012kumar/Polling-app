@@ -112,7 +112,9 @@ export default function SignupPage() {
       } else {
         console.log("User row created in users table!");
         showAlert("Success", "Sign-up successful! Please check your email for confirmation.", "default");
-        router.push("/login");
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000); 
       }
     }
   };
