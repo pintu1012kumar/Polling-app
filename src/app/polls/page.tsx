@@ -1,452 +1,655 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { CheckCheck, Download, FileText, X, RefreshCw, Terminal, BarChart as BarChartIcon } from "lucide-react";
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabaseClient"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { convertFileUrlToHtml } from "@/lib/fileExtractor";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+  CheckCheck,
+  Download,
+  FileText,
+  X,
+  RefreshCw,
+  Terminal,
+  BarChartIcon,
+  Vote,
+  Loader2,
+  Calendar,
+  HourglassIcon,
+  TrendingUp,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { convertFileUrlToHtml } from "../../lib/fileExtractor"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { formatDistanceToNow } from "date-fns"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Interfaces for data types
 interface Poll {
-  id: string;
-  question: string;
-  option1: string;
-  option2: string;
-  option3: string;
-  option4: string;
-  file_url?: string;
-  file_type?: string;
-  created_at: string;
+  id: string
+  question: string
+  option1: string
+  option2: string
+  option3: string
+  option4: string
+  poll_type: "single" | "multiple" | "ranked"
+  file_url?: string
+  file_type?: string
+  created_at: string
+  start_at?: string
+  end_at?: string
+  tags?: string[]
 }
 
 interface PollResult {
-  name: string;
-  votes: number;
+  name: string
+  votes: number
 }
 
+// Predefined categories for the dropdown
+const pollCategories = [
+  { value: "technology", label: "Technology" },
+  { value: "politics", label: "Politics" },
+  { value: "sports", label: "Sports" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "science", label: "Science" },
+]
+
 export default function PollsPage() {
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [selectedOption, setSelectedOption] = useState<Record<string, string>>({});
-  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [userVotes, setUserVotes] = useState<Record<string, string>>({});
-  
-  // States for the File Modal
-  const [showFileModal, setShowFileModal] = useState(false);
-  const [fileModalContent, setFileModalContent] = useState<string>("");
-  const [fileModalTitle, setFileModalTitle] = useState<string>("");
-  const [isFileLoading, setIsFileLoading] = useState(false);
+  const [polls, setPolls] = useState<Poll[]>([])
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({})
+  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set())
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [userVotes, setUserVotes] = useState<Record<string, string[]>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // States for the Poll Results Modal
-  const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
-  const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
-  const [pollResults, setPollResults] = useState<PollResult[]>([]);
-  const [isResultsLoading, setIsResultsLoading] = useState(false);
+  const [showFileModal, setShowFileModal] = useState(false)
+  const [fileModalContent, setFileModalContent] = useState<string>("")
+  const [fileModalTitle, setFileModalTitle] = useState<string>("")
+  const [isFileLoading, setIsFileLoading] = useState(false)
 
-  // State for shadcn alert
+  const [isResultsModalOpen, setIsResultsModalOpen] = useState(false)
+  const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null)
+  const [pollResults, setPollResults] = useState<PollResult[]>([])
+  const [isResultsLoading, setIsResultsLoading] = useState(false)
+
+  // New state for search and filter
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+
   const [alert, setAlert] = useState<{
-    show: boolean;
-    title: string;
-    description: string;
-    variant: "default" | "destructive";
+    show: boolean
+    title: string
+    description: string
+    variant: "default" | "destructive"
   }>({
     show: false,
     title: "",
     description: "",
     variant: "default",
-  });
+  })
 
-  const router = useRouter();
+  const router = useRouter()
 
-  // Helper function to show alerts
-  const showAlert = (
-    title: string,
-    description: string,
-    variant: "default" | "destructive" = "default"
-  ) => {
-    setAlert({ show: true, title, description, variant });
+  const showAlert = (title: string, description: string, variant: "default" | "destructive" = "default") => {
+    setAlert({ show: true, title, description, variant })
     setTimeout(() => {
-      setAlert((prev) => ({ ...prev, show: false }));
-    }, 5000); // Alert disappears after 5 seconds
-  };
+      setAlert((prev) => ({ ...prev, show: false }))
+    }, 5000)
+  }
 
+  // Helper function to get poll status
+  const getPollStatus = (poll: Poll) => {
+    const now = new Date()
+    const startTime = poll.start_at ? new Date(poll.start_at) : null
+    const endTime = poll.end_at ? new Date(poll.end_at) : null
+
+    if (startTime && now < startTime) {
+      return "upcoming"
+    }
+    if (endTime && now > endTime) {
+      return "expired"
+    }
+    return "active"
+  }
+
+  // Fetches polls and user votes
+  const fetchPolls = async (userId: string) => {
+    let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
+
+    const now = new Date().toISOString()
+    // Filter to show only active or upcoming polls to the user
+    query = query.or(`end_at.gte.${now},end_at.is.null`)
+
+    if (searchQuery) {
+      query = query.ilike("question", `%${searchQuery}%`)
+    }
+
+   if (selectedCategory && selectedCategory !== "all") {
+  query = query.contains("tags", [selectedCategory]);
+}
+
+    const { data: pollData, error: pollError } = await query
+
+    const { data: responseData, error: responseError } = await supabase
+      .from("poll_selected_options")
+      .select("poll_id, selected_option")
+      .eq("user_id", userId)
+
+    if (pollError || responseError) {
+      console.error(pollError || responseError)
+      showAlert("Error", "Failed to fetch polls.", "destructive")
+      return
+    }
+
+    if (pollData) setPolls(pollData)
+
+    if (responseData) {
+      const votedIds = new Set(responseData.map((response) => response.poll_id))
+      setVotedPolls(votedIds)
+
+      const votes = responseData.reduce(
+        (acc, current) => {
+          if (!acc[current.poll_id]) {
+            acc[current.poll_id] = []
+          }
+          acc[current.poll_id].push(current.selected_option)
+          return acc
+        },
+        {} as Record<string, string[]>,
+      )
+      setUserVotes(votes)
+    }
+  }
+
+  // Authentication and role check
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) {
-        router.push("/login");
+        router.push("/login")
       } else {
         const { data: userData, error: userError } = await supabase
           .from("users")
           .select("role")
           .eq("id", session.user.id)
-          .single();
+          .single()
 
         if (userError || !userData) {
-          showAlert("Error", "Failed to fetch user role", "destructive");
-          router.push("/login");
-          return;
+          showAlert("Error", "Failed to fetch user role", "destructive")
+          router.push("/login")
+          return
         }
 
         if (userData.role === "admin") {
-          router.push("/admin/polls");
+          router.push("/admin/polls")
+        } else if (userData.role === "moderator") {
+          router.push("/moderate")
         } else if (userData.role === "user") {
-          fetchPolls(session.user.id);
+          fetchPolls(session.user.id)
         } else {
-          showAlert("Error", "Unknown user role", "destructive");
-          router.push("/login");
+          showAlert("Error", "Unknown user role", "destructive")
+          router.push("/login")
         }
       }
-      setIsAuthLoading(false);
-    };
+      setIsAuthLoading(false)
+    }
 
-    checkAuth();
+    checkAuth()
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        router.push("/login");
+        router.push("/login")
       }
-    });
+    })
 
     return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, [router]);
-
-  const fetchPolls = async (userId: string) => {
-    const { data: pollData, error: pollError } = await supabase
-      .from("polls")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    const { data: responseData, error: responseError } = await supabase
-      .from("poll_responses")
-      .select("poll_id, selected_option")
-      .eq("user_id", userId);
-
-    if (pollError || responseError) {
-      console.error(pollError || responseError);
-      showAlert("Error", "Failed to fetch polls.", "destructive");
-      return;
+      listener.subscription.unsubscribe()
     }
+  }, [router])
 
-    if (pollData) setPolls(pollData);
+  // New useEffect hook to trigger fetch on search or filter change with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session) {
+        fetchPolls(session.user.id)
+      }
+    }, 300)
 
-    if (responseData) {
-      const votedIds = new Set(responseData.map((response) => response.poll_id));
-      setVotedPolls(votedIds);
-
-      const votes = responseData.reduce((acc, current) => {
-        acc[current.poll_id] = current.selected_option;
-        return acc;
-      }, {} as Record<string, string>);
-      setUserVotes(votes);
-    }
-  };
+    return () => clearTimeout(timer)
+  }, [searchQuery, selectedCategory])
 
   const handleShowResults = async (poll: Poll) => {
-    setSelectedPoll(poll);
-    setIsResultsModalOpen(true);
-    setIsResultsLoading(true);
+    setSelectedPoll(poll)
+    setIsResultsModalOpen(true)
+    setIsResultsLoading(true)
 
     const { data: responses, error } = await supabase
-      .from("poll_responses")
+      .from("poll_selected_options")
       .select("selected_option")
-      .eq("poll_id", poll.id);
+      .eq("poll_id", poll.id)
 
     if (error) {
-      console.error("Error fetching poll results:", error);
-      showAlert("Error", "Failed to fetch poll results.", "destructive");
-      setIsResultsLoading(false);
-      return;
+      console.error("Error fetching poll results:", error)
+      showAlert("Error", "Failed to fetch poll results.", "destructive")
+      setIsResultsLoading(false)
+      return
     }
 
-    const voteCounts = responses.reduce((acc, current) => {
-      acc[current.selected_option] = (acc[current.selected_option] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const voteCounts = responses.reduce(
+      (acc, current) => {
+        acc[current.selected_option] = (acc[current.selected_option] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
 
-    const chartData = [
-      poll.option1,
-      poll.option2,
-      poll.option3,
-      poll.option4,
-    ].map((option) => ({
+    const chartData = [poll.option1, poll.option2, poll.option3, poll.option4].map((option) => ({
       name: option,
       votes: voteCounts[option] || 0,
-    }));
+    }))
 
-    setPollResults(chartData);
-    setIsResultsLoading(false);
-  };
+    setPollResults(chartData)
+    setIsResultsLoading(false)
+  }
 
-  const handleVote = async (pollId: string) => {
-    if (!selectedOption[pollId]) {
-      showAlert("Info", "Please select an option!", "default");
-      return;
+  const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
+    const optionsToSubmit = selectedOptions[pollId] || []
+
+    if (optionsToSubmit.length === 0) {
+      showAlert("Info", "Please select at least one option!", "default")
+      return
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) {
-      router.push("/login");
-      return;
+      router.push("/login")
+      return
     }
 
     if (votedPolls.has(pollId)) {
-      showAlert("Info", "You have already voted on this poll!", "default");
-      return;
+      showAlert("Info", "You have already voted on this poll!", "default")
+      return
     }
 
-    const { error } = await supabase.from("poll_responses").insert([
-      {
-        poll_id: pollId,
-        user_id: session.user.id,
-        selected_option: selectedOption[pollId],
-      },
-    ]);
+    setIsSubmitting(true)
+
+    const votesToInsert = optionsToSubmit.map((option) => ({
+      poll_id: pollId,
+      user_id: session.user.id,
+      selected_option: option,
+    }))
+
+    const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
 
     if (error) {
-      console.error(error);
-      showAlert("Error", "Failed to submit vote. Please try again.", "destructive");
+      console.error(error)
+      showAlert("Error", "Failed to submit vote. Please try again.", "destructive")
     } else {
-      showAlert("Success", "Vote submitted successfully!", "default");
-      setVotedPolls((prev: Set<string>) => new Set(prev).add(pollId));
-      setUserVotes((prev: Record<string, string>) => ({ ...prev, [pollId]: selectedOption[pollId] }));
-      setSelectedOption((prev: Record<string, string>) => ({ ...prev, [pollId]: "" }));
+      showAlert("Success", "Vote submitted successfully!", "default")
+      setVotedPolls((prev) => new Set(prev).add(pollId))
+      setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
+      setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
     }
-  };
+
+    setIsSubmitting(false)
+  }
+
+  const handleToggleOption = (pollId: string, option: string) => {
+    setSelectedOptions((prev) => {
+      const currentSelections = prev[pollId] || []
+      const isSelected = currentSelections.includes(option)
+      const poll = polls.find((p) => p.id === pollId)
+
+      if (poll?.poll_type === "single" && !isSelected) {
+        return {
+          ...prev,
+          [pollId]: [option],
+        }
+      }
+
+      if (isSelected) {
+        return {
+          ...prev,
+          [pollId]: currentSelections.filter((opt) => opt !== option),
+        }
+      } else {
+        return {
+          ...prev,
+          [pollId]: [...currentSelections, option],
+        }
+      }
+    })
+  }
 
   const handleViewFile = async (poll: Poll) => {
-    if (!poll.file_url || !poll.file_type) return;
+    if (!poll.file_url || !poll.file_type) return
 
-    setShowFileModal(true);
-    setFileModalTitle(`Description for: ${poll.question}`);
-    setIsFileLoading(true);
-    setFileModalContent("");
+    setShowFileModal(true)
+    setFileModalTitle(`Description for: ${poll.question}`)
+    setIsFileLoading(true)
+    setFileModalContent("")
 
     try {
-      if (poll.file_type.startsWith('image/')) {
-        setFileModalContent(`<img src="${poll.file_url}" alt="Poll description" class="w-full h-auto object-contain rounded-md" />`);
+      if (poll.file_type.startsWith("image/")) {
+        setFileModalContent(
+          `<img src="${poll.file_url}" alt="Poll description" class="w-full h-auto object-contain rounded-md" />`,
+        )
       } else {
-        const html = await convertFileUrlToHtml(poll.file_url, poll.file_type);
-        setFileModalContent(html);
+        const html = await convertFileUrlToHtml(poll.file_url, poll.file_type)
+        setFileModalContent(html)
       }
     } catch (err) {
-      setFileModalContent("Failed to load file content.");
+      setFileModalContent("Failed to load file content.")
     } finally {
-      setIsFileLoading(false);
+      setIsFileLoading(false)
     }
-  };
+  }
 
   const handleDirectDownload = async (fileUrl: string) => {
     try {
-      const response = await fetch(fileUrl);
-      const blob = await response.blob();
-      const filename = fileUrl.split('/').pop();
-      const a = document.createElement('a');
-      a.href = window.URL.createObjectURL(blob);
-      a.download = filename || 'download';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const response = await fetch(fileUrl)
+      const blob = await response.blob()
+      const filename = fileUrl.split("/").pop()
+      const a = document.createElement("a")
+      a.href = window.URL.createObjectURL(blob)
+      a.download = filename || "download"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
     } catch (error) {
-      console.error('Error downloading the file:', error);
-      showAlert("Error", "Failed to download the file.", "destructive");
+      console.error("Error downloading the file:", error)
+      showAlert("Error", "Failed to download the file.", "destructive")
     }
-  };
+  }
 
   if (isAuthLoading) {
     return (
-      <div className="flex justify-center items-center h-screen text-lg">
-        Loading...
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="text-muted-foreground">Loading polls...</p>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="p-4 max-w-xl mx-auto">
-      {/* Shadcn Alert */}
-      {alert.show && (
-        <div className="fixed bottom-4 right-4 z-[9999]">
-          <Alert variant={alert.variant} className="w-[300px]">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>{alert.title}</AlertTitle>
-            <AlertDescription>{alert.description}</AlertDescription>
-          </Alert>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {alert.show && (
+          <div className="fixed bottom-4 right-4 z-[9999]">
+            <Alert variant={alert.variant} className="w-[300px]">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>{alert.title}</AlertTitle>
+              <AlertDescription>{alert.description}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Available Polls</h1>
+          <p className="text-muted-foreground">Cast your vote on the latest polls</p>
         </div>
-      )}
 
-      <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Available Polls</h1>
-      <div className="space-y-6">
-        {polls.map((poll) => {
-          const hasVoted = votedPolls.has(poll.id);
-          const votedOption = userVotes[poll.id];
-
-          return (
-            <Card key={poll.id} className="p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
-              <CardHeader className="p-0 mb-3">
-                <CardTitle className="flex justify-between items-center text-lg font-semibold text-gray-800">
-                  <span>{poll.question}</span>
-                  {hasVoted && (
-                    <div className="flex items-center text-black font-medium text-sm">
-                      <CheckCheck className="w-4 h-4 mr-1" /> Voted
-                    </div>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <RadioGroup
-                  onValueChange={(value) => setSelectedOption((prev) => ({ ...prev, [poll.id]: value }))}
-                  value={selectedOption[poll.id] || ""}
-                  className="grid grid-cols-1 gap-2"
-                  disabled={hasVoted}
-                >
-                  {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
-                    const isVotedOption = hasVoted && votedOption === opt;
-                    const isSelected = selectedOption[poll.id] === opt;
-
-                    return (
-                      <div key={idx} className={`flex items-center space-x-2 p-3 rounded-md transition-colors duration-200
-                        ${hasVoted
-                            ? isVotedOption
-                              ? 'bg-gray-100 text-black-800'
-                              : 'bg-gray-50 text-gray-500 cursor-not-allowed'
-                            : isSelected
-                              ? 'bg-gray-100 border-2 border-black'
-                              : 'bg-gray-50 hover:bg-gray-100'
-                        }
-                      `}>
-                        <RadioGroupItem
-                          value={opt}
-                          id={`${poll.id}-option-${idx}`}
-                          className="!pointer-events-auto"
-                        />
-                        <Label
-                          htmlFor={`${poll.id}-option-${idx}`}
-                          className="w-full cursor-pointer text-sm font-normal"
-                        >
-                          {opt}
-                        </Label>
-                        {isVotedOption && (
-                            <CheckCheck className="text-black w-4 h-4 ml-auto" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </RadioGroup>
-
-                {poll.file_url && (
-                  <div className="flex space-x-2 items-center mt-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDirectDownload(poll.file_url!)}
-                      className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
-                    >
-                      <Download size={16} />
-                      <span>Download File</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewFile(poll)}
-                      className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
-                    >
-                      <FileText size={16} />
-                      <span>View File</span>
-                    </Button>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center mt-4">
-                  <Button variant="ghost" onClick={() => handleShowResults(poll)}>
-                    <BarChartIcon size={16} className="mr-2" />
-                    Show Results
-                  </Button>
-                  {!hasVoted && (
-                    <Button onClick={() => handleVote(poll.id)}>
-                      Submit Vote
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      
-      {/* Poll Results Modal */}
-      <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">
-              Poll Results
-            </DialogTitle>
-            <DialogDescription className="text-gray-800 font-semibold">{selectedPoll?.question}</DialogDescription>
-          </DialogHeader>
-          {isResultsLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <RefreshCw className="h-10 w-10 text-black-500 animate-spin" />
-            </div>
-          ) : (
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pollResults} margin={{ top: 20, right: 10, left: 10, bottom: 5 }}>
-                  <XAxis dataKey="name" interval={0} angle={-30} textAnchor="end" height={50} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="votes" fill="#3b82f6" name="Votes" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* File Viewer Modal */}
-      {showFileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-          <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden">
-            <div className="sticky top-0 bg-white flex justify-between items-center p-4 border-b z-10">
-              <h2 className="text-xl font-bold text-gray-800">
-                {fileModalTitle}
-              </h2>
-              <button
-                onClick={() => setShowFileModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Close modal"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            {isFileLoading ? (
-              <div className="flex justify-center items-center h-[50vh]">
-                <RefreshCw className="h-10 w-10 text-black animate-spin" />
-              </div>
-            ) : (
-              <div className="p-4 overflow-y-auto max-h-[calc(90vh-70px)]">
-                <div
-                  className="prose max-w-none text-gray-700 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: fileModalContent }}
-                />
-              </div>
-            )}
+        {/* Search and Filter UI */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+          <div className="w-full sm:w-1/2">
+            <Input
+              placeholder="Search polls..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-1/2 md:w-1/4">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+             <SelectContent>
+  <SelectItem value="all">All Categories</SelectItem>
+  {pollCategories.map((category) => (
+    <SelectItem key={category.value} value={category.value}>
+      {category.label}
+    </SelectItem>
+  ))}
+</SelectContent>
+            </Select>
           </div>
         </div>
-      )}
+
+        {polls.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No polls available</h3>
+              <p className="text-muted-foreground">Check back later for new polls to vote on.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {polls.map((poll) => {
+              const hasVoted = votedPolls.has(poll.id)
+              const votedOptions = userVotes[poll.id] || []
+              const hasPendingVotes = selectedOptions[poll.id]?.length > 0
+              const status = getPollStatus(poll)
+              const isActive = status === "active"
+
+              return (
+                <Card key={poll.id} className="transition-all duration-200 hover:shadow-md">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <CardTitle className="text-xl leading-tight">{poll.question}</CardTitle>
+                      {status === "upcoming" && (
+                        <Badge variant="outline" className="flex items-center gap-1 shrink-0">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Upcoming
+                        </Badge>
+                      )}
+                      {status === "active" && (
+                        <Badge variant="default" className="flex items-center gap-1 shrink-0">
+                          <HourglassIcon className="w-3 h-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                      {status === "expired" && (
+                        <Badge variant="destructive" className="flex items-center gap-1 shrink-0">
+                          <HourglassIcon className="w-3 h-3 mr-1" />
+                          Expired
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(poll.tags || []).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                      <p>
+                        **Start:** {poll.start_at ? new Date(poll.start_at).toLocaleString() : "Not specified"}
+                      </p>
+                      <p>
+                        **End:** {poll.end_at ? new Date(poll.end_at).toLocaleString() : "Not specified"}
+                      </p>
+                      {isActive && (
+                        <p className="text-xs font-semibold text-primary">
+                          Expires {formatDistanceToNow(new Date(poll.end_at!), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
+                        const isVotedOption = hasVoted && votedOptions.includes(opt)
+                        const isSelected = selectedOptions[poll.id]?.includes(opt)
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all duration-200 ${
+                              hasVoted
+                                ? isVotedOption
+                                  ? "border-primary bg-primary/5"
+                                  : "border-muted bg-muted/30 opacity-60"
+                                : isSelected
+                                ? "border-primary bg-primary/5"
+                                : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                            } ${!isActive && "pointer-events-none opacity-50"}`}
+                            onClick={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
+                          >
+                            <Checkbox
+                              id={`${poll.id}-option-${idx}`}
+                              checked={isSelected || isVotedOption}
+                              onCheckedChange={() => handleToggleOption(poll.id, opt)}
+                              disabled={!isActive || hasVoted}
+                            />
+                            <Label htmlFor={`${poll.id}-option-${idx}`} className="flex-1 cursor-pointer font-medium">
+                              {opt}
+                            </Label>
+                            {isVotedOption && <CheckCheck className="h-4 w-4 text-primary shrink-0" />}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+                      <div className="flex flex-wrap gap-2">
+                        {poll.file_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDirectDownload(poll.file_url!)}
+                            className="flex items-center gap-2"
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                          </Button>
+                        )}
+                        {poll.file_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewFile(poll)}
+                            className="flex items-center gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            View File
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShowResults(poll)}
+                          className="flex items-center gap-2"
+                        >
+                          <BarChartIcon className="h-4 w-4" />
+                          Results
+                        </Button>
+                      </div>
+
+                      {isActive && !hasVoted && (
+                        <Button
+                          onClick={() => handleVote(poll.id, poll.poll_type)}
+                          disabled={isSubmitting || !hasPendingVotes}
+                          className="w-full sm:w-auto"
+                          size="default"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                            </>
+                          ) : (
+                            "Submit Vote"
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Dialogs remain the same as before */}
+        <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-2xl">Poll Results</DialogTitle>
+              <DialogDescription className="text-base font-medium text-foreground">
+                {selectedPoll?.question}
+              </DialogDescription>
+              <Separator />
+            </DialogHeader>
+            {isResultsLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground">Loading results...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={pollResults} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <XAxis dataKey="name" interval={0} angle={-45} textAnchor="end" height={80} fontSize={12} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="votes" fill="hsl(var(--primary))" name="Votes" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="text-center text-sm text-muted-foreground">
+                  Total votes: {pollResults.reduce((sum, result) => sum + result.votes, 0)}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {showFileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+            <div className="relative bg-background w-full max-w-4xl max-h-[90vh] rounded-lg shadow-2xl overflow-hidden border">
+              <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex justify-between items-center p-6 border-b z-10">
+                <h2 className="text-xl font-semibold">{fileModalTitle}</h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowFileModal(false)} className="h-8 w-8">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {isFileLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading file content...</p>
+                </div>
+              ) : (
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                  <div
+                    className="prose prose-sm max-w-none dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: fileModalContent }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
-  );
+  )
 }
