@@ -101,6 +101,11 @@ export const convertFileUrlToHtml = async (
   if (fileType.includes("image/")) {
     return `<div class="image-container"><img src="${fileUrl}" alt="Extracted Image" class="max-w-full h-auto mx-auto block" /></div>`;
   }
+  
+  // Add support for video files (MP4, etc.)
+  if (fileType.includes("video/")) {
+    return `<div class="video-container"><video src="${fileUrl}" controls class="w-full h-auto rounded-md" /></div>`;
+  }
 
   if (fileType.includes("pdf")) {
     const pdfjsLib: PdfJsLib = await loadPdfJsFromCdn();
@@ -360,7 +365,6 @@ export const convertFileUrlToHtml = async (
 
   throw new Error("Unsupported file type");
 };
-
 
 /**
  * Lists files uploaded by a user from a specific bucket and folder.

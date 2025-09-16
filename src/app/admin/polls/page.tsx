@@ -67,6 +67,10 @@ const pollCategories = [
   { value: "science", label: "Science" },
 ];
 
+// File size constants in KB
+const MIN_FILE_SIZE_KB = 10;
+const MAX_FILE_SIZE_KB = 5000;
+
 export default function AdminPollsPage() {
   const [polls, setPolls] = useState<Poll[]>([])
   const [question, setQuestion] = useState("")
@@ -234,6 +238,28 @@ export default function AdminPollsPage() {
     setPollResults(chartData)
     setIsResultsLoading(false)
   }
+
+  // New handler for file input to include size validation
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      const fileSizeInKB = selectedFile.size / 1024;
+      if (fileSizeInKB < MIN_FILE_SIZE_KB || fileSizeInKB > MAX_FILE_SIZE_KB) {
+        showAlert(
+          "File Size Error", 
+          `File size must be between ${MIN_FILE_SIZE_KB} KB and ${MAX_FILE_SIZE_KB} KB.`,
+          "destructive"
+        );
+        e.target.value = ''; // Clear the file input
+        setFile(null);
+        return;
+      }
+      setFile(selectedFile);
+    } else {
+      setFile(null);
+    }
+  };
+
 
   const handleSavePoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) {
@@ -888,7 +914,7 @@ export default function AdminPollsPage() {
                 Supporting Document
               </Label>
               <div className="relative">
-                <Input id="file" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                <Input id="file" type="file" onChange={handleFileChange} />
                 {file && (
                   <div className="mt-3 p-3 rounded-lg border">
                     <p className="text-sm flex items-center">
@@ -899,7 +925,9 @@ export default function AdminPollsPage() {
                   </div>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">Upload a document to support your poll (optional)</p>
+              <p className="text-sm text-muted-foreground">
+                Upload a document to support your poll (optional, 10 KB - 5000 KB).
+              </p>
             </div>
 
             <Separator />
