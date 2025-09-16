@@ -418,7 +418,7 @@ export default function PollsPage() {
               <SelectTrigger>
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
-             <SelectContent>
+            <SelectContent>
   <SelectItem value="all">All Categories</SelectItem>
   {pollCategories.map((category) => (
     <SelectItem key={category.value} value={category.value}>
