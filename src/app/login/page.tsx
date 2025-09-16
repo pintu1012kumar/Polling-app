@@ -95,6 +95,8 @@ export default function LoginPage() {
           router.push("/admin/polls");
         } else if (role === "user") {
           router.push("/polls");
+        } else if (role === "moderator") {
+          router.push("/moderator");
         } else {
           showAlert("Error", "Unknown user role.", "destructive");
         }

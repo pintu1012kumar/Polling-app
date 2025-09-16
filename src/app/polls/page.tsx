@@ -186,7 +186,7 @@ export default function PollsPage() {
         if (userData.role === "admin") {
           router.push("/admin/polls")
         } else if (userData.role === "moderator") {
-          router.push("/moderate")
+          router.push("/moderator")
         } else if (userData.role === "user") {
           fetchPolls(session.user.id)
         } else {
