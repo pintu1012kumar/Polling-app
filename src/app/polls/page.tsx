@@ -4,9 +4,21 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { CheckCheck, Download, FileText, X, RefreshCw, Terminal, BarChartIcon, Vote } from "lucide-react"
+import {
+  CheckCheck,
+  Download,
+  FileText,
+  X,
+  RefreshCw,
+  Terminal,
+  BarChartIcon,
+  Vote,
+  Loader2,
+  Calendar,
+  HourglassIcon,
+  TrendingUp,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { convertFileUrlToHtml } from "../../lib/fileExtractor"
@@ -14,7 +26,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { formatDistanceToNow } from "date-fns"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Interfaces for data types
 interface Poll {
   id: string
   question: string
@@ -22,9 +39,13 @@ interface Poll {
   option2: string
   option3: string
   option4: string
+  poll_type: "single" | "multiple" | "ranked"
   file_url?: string
   file_type?: string
   created_at: string
+  start_at?: string
+  end_at?: string
+  tags?: string[]
 }
 
 interface PollResult {
@@ -32,12 +53,22 @@ interface PollResult {
   votes: number
 }
 
+// Predefined categories for the dropdown
+const pollCategories = [
+  { value: "technology", label: "Technology" },
+  { value: "politics", label: "Politics" },
+  { value: "sports", label: "Sports" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "science", label: "Science" },
+]
+
 export default function PollsPage() {
   const [polls, setPolls] = useState<Poll[]>([])
-  const [selectedOption, setSelectedOption] = useState<Record<string, string>>({})
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({})
   const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set())
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [userVotes, setUserVotes] = useState<Record<string, string>>({})
+  const [userVotes, setUserVotes] = useState<Record<string, string[]>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [showFileModal, setShowFileModal] = useState(false)
   const [fileModalContent, setFileModalContent] = useState<string>("")
@@ -48,6 +79,10 @@ export default function PollsPage() {
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null)
   const [pollResults, setPollResults] = useState<PollResult[]>([])
   const [isResultsLoading, setIsResultsLoading] = useState(false)
+
+  // New state for search and filter
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
 
   const [alert, setAlert] = useState<{
     show: boolean
@@ -67,9 +102,74 @@ export default function PollsPage() {
     setAlert({ show: true, title, description, variant })
     setTimeout(() => {
       setAlert((prev) => ({ ...prev, show: false }))
-    }, 5000) // Alert disappears after 5 seconds
+    }, 5000)
   }
 
+  // Helper function to get poll status
+  const getPollStatus = (poll: Poll) => {
+    const now = new Date()
+    const startTime = poll.start_at ? new Date(poll.start_at) : null
+    const endTime = poll.end_at ? new Date(poll.end_at) : null
+
+    if (startTime && now < startTime) {
+      return "upcoming"
+    }
+    if (endTime && now > endTime) {
+      return "expired"
+    }
+    return "active"
+  }
+
+  // Fetches polls and user votes
+  const fetchPolls = async (userId: string) => {
+    let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
+
+    const now = new Date().toISOString()
+    // Filter to show only active or upcoming polls to the user
+    query = query.or(`end_at.gte.${now},end_at.is.null`)
+
+    if (searchQuery) {
+      query = query.ilike("question", `%${searchQuery}%`)
+    }
+
+   if (selectedCategory && selectedCategory !== "all") {
+  query = query.contains("tags", [selectedCategory]);
+}
+
+    const { data: pollData, error: pollError } = await query
+
+    const { data: responseData, error: responseError } = await supabase
+      .from("poll_selected_options")
+      .select("poll_id, selected_option")
+      .eq("user_id", userId)
+
+    if (pollError || responseError) {
+      console.error(pollError || responseError)
+      showAlert("Error", "Failed to fetch polls.", "destructive")
+      return
+    }
+
+    if (pollData) setPolls(pollData)
+
+    if (responseData) {
+      const votedIds = new Set(responseData.map((response) => response.poll_id))
+      setVotedPolls(votedIds)
+
+      const votes = responseData.reduce(
+        (acc, current) => {
+          if (!acc[current.poll_id]) {
+            acc[current.poll_id] = []
+          }
+          acc[current.poll_id].push(current.selected_option)
+          return acc
+        },
+        {} as Record<string, string[]>,
+      )
+      setUserVotes(votes)
+    }
+  }
+
+  // Authentication and role check
   useEffect(() => {
     const checkAuth = async () => {
       const {
@@ -92,6 +192,8 @@ export default function PollsPage() {
 
         if (userData.role === "admin") {
           router.push("/admin/polls")
+        } else if (userData.role === "moderator") {
+          router.push("/moderate")
         } else if (userData.role === "user") {
           fetchPolls(session.user.id)
         } else {
@@ -115,39 +217,19 @@ export default function PollsPage() {
     }
   }, [router])
 
-  const fetchPolls = async (userId: string) => {
-    const { data: pollData, error: pollError } = await supabase
-      .from("polls")
-      .select("*")
-      .order("created_at", { ascending: false })
+  // New useEffect hook to trigger fetch on search or filter change with debounce
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session) {
+        fetchPolls(session.user.id)
+      }
+    }, 300)
 
-    const { data: responseData, error: responseError } = await supabase
-      .from("poll_responses")
-      .select("poll_id, selected_option")
-      .eq("user_id", userId)
-
-    if (pollError || responseError) {
-      console.error(pollError || responseError)
-      showAlert("Error", "Failed to fetch polls.", "destructive")
-      return
-    }
-
-    if (pollData) setPolls(pollData)
-
-    if (responseData) {
-      const votedIds = new Set(responseData.map((response) => response.poll_id))
-      setVotedPolls(votedIds)
-
-      const votes = responseData.reduce(
-        (acc, current) => {
-          acc[current.poll_id] = current.selected_option
-          return acc
-        },
-        {} as Record<string, string>,
-      )
-      setUserVotes(votes)
-    }
-  }
+    return () => clearTimeout(timer)
+  }, [searchQuery, selectedCategory])
 
   const handleShowResults = async (poll: Poll) => {
     setSelectedPoll(poll)
@@ -155,7 +237,7 @@ export default function PollsPage() {
     setIsResultsLoading(true)
 
     const { data: responses, error } = await supabase
-      .from("poll_responses")
+      .from("poll_selected_options")
       .select("selected_option")
       .eq("poll_id", poll.id)
 
@@ -183,9 +265,11 @@ export default function PollsPage() {
     setIsResultsLoading(false)
   }
 
-  const handleVote = async (pollId: string) => {
-    if (!selectedOption[pollId]) {
-      showAlert("Info", "Please select an option!", "default")
+  const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
+    const optionsToSubmit = selectedOptions[pollId] || []
+
+    if (optionsToSubmit.length === 0) {
+      showAlert("Info", "Please select at least one option!", "default")
       return
     }
 
@@ -202,23 +286,54 @@ export default function PollsPage() {
       return
     }
 
-    const { error } = await supabase.from("poll_responses").insert([
-      {
-        poll_id: pollId,
-        user_id: session.user.id,
-        selected_option: selectedOption[pollId],
-      },
-    ])
+    setIsSubmitting(true)
+
+    const votesToInsert = optionsToSubmit.map((option) => ({
+      poll_id: pollId,
+      user_id: session.user.id,
+      selected_option: option,
+    }))
+
+    const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
 
     if (error) {
       console.error(error)
       showAlert("Error", "Failed to submit vote. Please try again.", "destructive")
     } else {
       showAlert("Success", "Vote submitted successfully!", "default")
-      setVotedPolls((prev: Set<string>) => new Set(prev).add(pollId))
-      setUserVotes((prev: Record<string, string>) => ({ ...prev, [pollId]: selectedOption[pollId] }))
-      setSelectedOption((prev: Record<string, string>) => ({ ...prev, [pollId]: "" }))
+      setVotedPolls((prev) => new Set(prev).add(pollId))
+      setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
+      setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
     }
+
+    setIsSubmitting(false)
+  }
+
+  const handleToggleOption = (pollId: string, option: string) => {
+    setSelectedOptions((prev) => {
+      const currentSelections = prev[pollId] || []
+      const isSelected = currentSelections.includes(option)
+      const poll = polls.find((p) => p.id === pollId)
+
+      if (poll?.poll_type === "single" && !isSelected) {
+        return {
+          ...prev,
+          [pollId]: [option],
+        }
+      }
+
+      if (isSelected) {
+        return {
+          ...prev,
+          [pollId]: currentSelections.filter((opt) => opt !== option),
+        }
+      } else {
+        return {
+          ...prev,
+          [pollId]: [...currentSelections, option],
+        }
+      }
+    })
   }
 
   const handleViewFile = async (poll: Poll) => {
@@ -289,6 +404,32 @@ export default function PollsPage() {
           <p className="text-muted-foreground">Cast your vote on the latest polls</p>
         </div>
 
+        {/* Search and Filter UI */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+          <div className="w-full sm:w-1/2">
+            <Input
+              placeholder="Search polls..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-1/2 md:w-1/4">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+            <SelectContent>
+  <SelectItem value="all">All Categories</SelectItem>
+  {pollCategories.map((category) => (
+    <SelectItem key={category.value} value={category.value}>
+      {category.label}
+    </SelectItem>
+  ))}
+</SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {polls.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
@@ -301,34 +442,62 @@ export default function PollsPage() {
           <div className="space-y-6">
             {polls.map((poll) => {
               const hasVoted = votedPolls.has(poll.id)
-              const votedOption = userVotes[poll.id]
+              const votedOptions = userVotes[poll.id] || []
+              const hasPendingVotes = selectedOptions[poll.id]?.length > 0
+              const status = getPollStatus(poll)
+              const isActive = status === "active"
 
               return (
                 <Card key={poll.id} className="transition-all duration-200 hover:shadow-md">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between gap-4">
                       <CardTitle className="text-xl leading-tight">{poll.question}</CardTitle>
-                      {hasVoted && (
-                        <Badge variant="secondary" className="flex items-center gap-1 shrink-0">
-                          <CheckCheck className="h-3 w-3" />
-                          Voted
+                      {status === "upcoming" && (
+                        <Badge variant="outline" className="flex items-center gap-1 shrink-0">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Upcoming
+                        </Badge>
+                      )}
+                      {status === "active" && (
+                        <Badge variant="default" className="flex items-center gap-1 shrink-0">
+                          <HourglassIcon className="w-3 h-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                      {status === "expired" && (
+                        <Badge variant="destructive" className="flex items-center gap-1 shrink-0">
+                          <HourglassIcon className="w-3 h-3 mr-1" />
+                          Expired
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Created {new Date(poll.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(poll.tags || []).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                      <p>
+                        **Start:** {poll.start_at ? new Date(poll.start_at).toLocaleString() : "Not specified"}
+                      </p>
+                      <p>
+                        **End:** {poll.end_at ? new Date(poll.end_at).toLocaleString() : "Not specified"}
+                      </p>
+                      {isActive && (
+                        <p className="text-xs font-semibold text-primary">
+                          Expires {formatDistanceToNow(new Date(poll.end_at!), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
                   </CardHeader>
+
                   <CardContent className="space-y-6">
-                    <RadioGroup
-                      onValueChange={(value) => setSelectedOption((prev) => ({ ...prev, [poll.id]: value }))}
-                      value={selectedOption[poll.id] || ""}
-                      className="space-y-3"
-                      disabled={hasVoted}
-                    >
+                    <div className="space-y-3">
                       {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
-                        const isVotedOption = hasVoted && votedOption === opt
-                        const isSelected = selectedOption[poll.id] === opt
+                        const isVotedOption = hasVoted && votedOptions.includes(opt)
+                        const isSelected = selectedOptions[poll.id]?.includes(opt)
 
                         return (
                           <div
@@ -339,11 +508,17 @@ export default function PollsPage() {
                                   ? "border-primary bg-primary/5"
                                   : "border-muted bg-muted/30 opacity-60"
                                 : isSelected
-                                  ? "border-primary bg-primary/5"
-                                  : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
-                            }`}
+                                ? "border-primary bg-primary/5"
+                                : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
+                            } ${!isActive && "pointer-events-none opacity-50"}`}
+                            onClick={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
                           >
-                            <RadioGroupItem value={opt} id={`${poll.id}-option-${idx}`} className="shrink-0" />
+                            <Checkbox
+                              id={`${poll.id}-option-${idx}`}
+                              checked={isSelected || isVotedOption}
+                              onCheckedChange={() => handleToggleOption(poll.id, opt)}
+                              disabled={!isActive || hasVoted}
+                            />
                             <Label htmlFor={`${poll.id}-option-${idx}`} className="flex-1 cursor-pointer font-medium">
                               {opt}
                             </Label>
@@ -351,11 +526,11 @@ export default function PollsPage() {
                           </div>
                         )
                       })}
-                    </RadioGroup>
+                    </div>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
-                      {poll.file_url && (
-                        <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {poll.file_url && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -365,6 +540,8 @@ export default function PollsPage() {
                             <Download className="h-4 w-4" />
                             Download
                           </Button>
+                        )}
+                        {poll.file_url && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -374,21 +551,32 @@ export default function PollsPage() {
                             <FileText className="h-4 w-4" />
                             View File
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShowResults(poll)}
-                            className="flex items-center gap-2"
-                          >
-                            <BarChartIcon className="h-4 w-4" />
-                            Results
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShowResults(poll)}
+                          className="flex items-center gap-2"
+                        >
+                          <BarChartIcon className="h-4 w-4" />
+                          Results
+                        </Button>
+                      </div>
 
-                      {!hasVoted && (
-                        <Button onClick={() => handleVote(poll.id)} className="w-full sm:w-auto" size="default">
-                          Submit Vote
+                      {isActive && !hasVoted && (
+                        <Button
+                          onClick={() => handleVote(poll.id, poll.poll_type)}
+                          disabled={isSubmitting || !hasPendingVotes}
+                          className="w-full sm:w-auto"
+                          size="default"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                            </>
+                          ) : (
+                            "Submit Vote"
+                          )}
                         </Button>
                       )}
                     </div>
@@ -399,6 +587,7 @@ export default function PollsPage() {
           </div>
         )}
 
+        {/* Dialogs remain the same as before */}
         <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader className="space-y-3">
