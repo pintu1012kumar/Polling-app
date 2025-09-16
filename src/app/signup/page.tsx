@@ -63,10 +63,9 @@ export default function SignupPage() {
     setAlert({ show: true, title, description, variant });
     setTimeout(() => {
       setAlert((prev) => ({ ...prev, show: false }));
-    }, 5000); // Alert disappears after 5 seconds
+    }, 5000);
   };
 
-  // Redirect logged-in users to /polls
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -75,6 +74,47 @@ export default function SignupPage() {
       }
     };
     checkUser();
+    
+    // Auth listener to handle both password and OAuth sign-ins
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          // Check if user profile exists in public.users table
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", session.user.id);
+
+          if (userError) {
+            console.error("Error fetching user profile:", userError.message);
+            // Don't block navigation, just log the error
+          }
+
+          if (!userData || userData.length === 0) {
+            // User profile doesn't exist, create it
+            const { error: insertError } = await supabase
+              .from("users")
+              .insert([
+                {
+                  id: session.user.id,
+                  role: "user",
+                },
+              ]);
+
+            if (insertError) {
+              console.error("Error inserting user into 'users' table:", insertError.message);
+              // Handle error, maybe show an alert
+            } else {
+              console.log("User successfully created in 'users' table!");
+            }
+          }
+          router.push("/polls");
+        }
+      }
+    );
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [router]);
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -96,7 +136,6 @@ export default function SignupPage() {
     }
 
     if (signUpData.user) {
-      // Insert into users table
       const { error: insertError } = await supabase
         .from("users")
         .insert([
@@ -114,8 +153,21 @@ export default function SignupPage() {
         showAlert("Success", "Sign-up successful! Please check your email for confirmation.", "default");
         setTimeout(() => {
           router.push("/login");
-        }, 2000); 
+        }, 2000);
       }
+    }
+  };
+  
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/polls`,
+      },
+    });
+
+    if (error) {
+      showAlert("Google Sign-in Failed", error.message, "destructive");
     }
   };
 
@@ -179,10 +231,21 @@ export default function SignupPage() {
                 )}
               />
               <Button type="submit" className="w-full">
-                Sign Up
+                Sign Up with Email
               </Button>
             </form>
           </Form>
+          <div className="relative mt-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+          <Button onClick={handleGoogleSignIn} className="w-full mt-4">
+            Sign Up with Google
+          </Button>
           <div className="mt-4 text-center text-sm">
             Already have an account?{" "}
             <Link href="/login" className="underline">

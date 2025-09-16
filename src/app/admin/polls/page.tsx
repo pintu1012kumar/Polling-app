@@ -810,6 +810,29 @@ export default function AdminPollsPage() {
               </div>
             </div>
 
+            {/* Poll Type Selection Dropdown */}
+            <div className="space-y-3">
+              <Label htmlFor="poll_type" className="text-base font-semibold">
+                Poll Type
+              </Label>
+              <Select
+                value={pollType}
+                onValueChange={(value) => setPollType(value as 'single' | 'multiple' | 'ranked')}
+              >
+                <SelectTrigger id="poll_type">
+                  <SelectValue placeholder="Select poll type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single Choice</SelectItem>
+                  <SelectItem value="multiple">Multiple Choice</SelectItem>
+                  <SelectItem value="ranked">Ranked Choice</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose if users can select one or multiple options.
+              </p>
+            </div>
+
             {/* Poll Categories Dropdown */}
             <div className="space-y-3">
               <Label htmlFor="category" className="text-base font-semibold">

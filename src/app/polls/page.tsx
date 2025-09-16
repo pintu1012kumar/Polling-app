@@ -80,7 +80,6 @@ export default function PollsPage() {
   const [pollResults, setPollResults] = useState<PollResult[]>([])
   const [isResultsLoading, setIsResultsLoading] = useState(false)
 
-  // New state for search and filter
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
 
@@ -105,7 +104,6 @@ export default function PollsPage() {
     }, 5000)
   }
 
-  // Helper function to get poll status
   const getPollStatus = (poll: Poll) => {
     const now = new Date()
     const startTime = poll.start_at ? new Date(poll.start_at) : null
@@ -120,21 +118,19 @@ export default function PollsPage() {
     return "active"
   }
 
-  // Fetches polls and user votes
   const fetchPolls = async (userId: string) => {
     let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
 
     const now = new Date().toISOString()
-    // Filter to show only active or upcoming polls to the user
     query = query.or(`end_at.gte.${now},end_at.is.null`)
 
     if (searchQuery) {
       query = query.ilike("question", `%${searchQuery}%`)
     }
 
-   if (selectedCategory && selectedCategory !== "all") {
-  query = query.contains("tags", [selectedCategory]);
-}
+    if (selectedCategory && selectedCategory !== "all") {
+      query = query.contains("tags", [selectedCategory]);
+    }
 
     const { data: pollData, error: pollError } = await query
 
@@ -169,12 +165,9 @@ export default function PollsPage() {
     }
   }
 
-  // Authentication and role check
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push("/login")
       } else {
@@ -217,12 +210,9 @@ export default function PollsPage() {
     }
   }, [router])
 
-  // New useEffect hook to trigger fetch on search or filter change with debounce
   useEffect(() => {
     const timer = setTimeout(async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         fetchPolls(session.user.id)
       }
@@ -273,9 +263,7 @@ export default function PollsPage() {
       return
     }
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       router.push("/login")
       return
@@ -313,14 +301,6 @@ export default function PollsPage() {
     setSelectedOptions((prev) => {
       const currentSelections = prev[pollId] || []
       const isSelected = currentSelections.includes(option)
-      const poll = polls.find((p) => p.id === pollId)
-
-      if (poll?.poll_type === "single" && !isSelected) {
-        return {
-          ...prev,
-          [pollId]: [option],
-        }
-      }
 
       if (isSelected) {
         return {
@@ -419,13 +399,13 @@ export default function PollsPage() {
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
             <SelectContent>
-  <SelectItem value="all">All Categories</SelectItem>
-  {pollCategories.map((category) => (
-    <SelectItem key={category.value} value={category.value}>
-      {category.label}
-    </SelectItem>
-  ))}
-</SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {pollCategories.map((category) => (
+                <SelectItem key={category.value} value={category.value}>
+                  {category.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
             </Select>
           </div>
         </div>
@@ -446,30 +426,37 @@ export default function PollsPage() {
               const hasPendingVotes = selectedOptions[poll.id]?.length > 0
               const status = getPollStatus(poll)
               const isActive = status === "active"
+              // const isMultiple = poll.poll_type === "multiple" // No longer needed
 
               return (
                 <Card key={poll.id} className="transition-all duration-200 hover:shadow-md">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between gap-4">
                       <CardTitle className="text-xl leading-tight">{poll.question}</CardTitle>
-                      {status === "upcoming" && (
-                        <Badge variant="outline" className="flex items-center gap-1 shrink-0">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          Upcoming
-                        </Badge>
-                      )}
-                      {status === "active" && (
-                        <Badge variant="default" className="flex items-center gap-1 shrink-0">
-                          <HourglassIcon className="w-3 h-3 mr-1" />
-                          Active
-                        </Badge>
-                      )}
-                      {status === "expired" && (
-                        <Badge variant="destructive" className="flex items-center gap-1 shrink-0">
-                          <HourglassIcon className="w-3 h-3 mr-1" />
-                          Expired
-                        </Badge>
-                      )}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {status === "upcoming" && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Upcoming
+                          </Badge>
+                        )}
+                        {status === "active" && (
+                          <Badge variant="default" className="flex items-center gap-1">
+                            <HourglassIcon className="w-3 h-3" />
+                            Active
+                          </Badge>
+                        )}
+                        {status === "expired" && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <HourglassIcon className="w-3 h-3" />
+                            Expired
+                          </Badge>
+                        )}
+                         {/* This badge will now always show "Multiple Choice" or you can remove it */}
+                          <Badge variant="secondary" className="text-xs">
+                            Multiple Choice
+                          </Badge>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(poll.tags || []).map((tag) => (
