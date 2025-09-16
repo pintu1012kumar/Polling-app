@@ -55,13 +55,50 @@ export default function LoginPage() {
     setAlert({ show: true, title, description, variant });
     setTimeout(() => {
       setAlert((prev) => ({ ...prev, show: false }));
-    }, 5000); // Alert disappears after 5 seconds
+    }, 5000);
   };
 
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
-      if (data.user) router.push("/polls");
+      if (data.user) {
+        // Check if user profile exists in public.users table
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", data.user.id);
+        
+        if (userError) {
+          console.error("Error fetching user role:", userError.message);
+          showAlert("Error", "Failed to get user details.", "destructive");
+          return;
+        }
+
+        if (userData.length === 0) {
+          // User profile doesn't exist, create it
+          const { error: insertError } = await supabase
+            .from("users")
+            .insert([{ id: data.user.id, role: "user" }]);
+
+          if (insertError) {
+            console.error("Error inserting user profile:", insertError.message);
+            showAlert("Error", "Failed to create user profile. Please try again.", "destructive");
+            return;
+          }
+          router.push("/polls");
+          return;
+        }
+
+        // User profile exists, get the role and redirect
+        const role = userData[0]?.role;
+        if (role === "admin") {
+          router.push("/admin/polls");
+        } else if (role === "user") {
+          router.push("/polls");
+        } else {
+          showAlert("Error", "Unknown user role.", "destructive");
+        }
+      }
     };
     checkUser();
   }, [router]);
@@ -79,7 +116,6 @@ export default function LoginPage() {
       showAlert("Login Failed", error.message, "destructive");
     } else {
       showAlert("Success", "Login successful!", "default");
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: userData, error: userError } = await supabase
@@ -87,12 +123,10 @@ export default function LoginPage() {
           .select("role")
           .eq("id", user.id)
           .single();
-
-        if (userError || !userData) {
-          showAlert("Error", "Failed to fetch user role.", "destructive");
+        if (userError) {
+          showAlert("Error", userError.message, "destructive");
           return;
         }
-
         if (userData.role === "admin") {
           router.push("/admin/polls");
         } else if (userData.role === "user") {
@@ -101,6 +135,18 @@ export default function LoginPage() {
           showAlert("Error", "Unknown user role.", "destructive");
         }
       }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/polls`,
+      },
+    });
+    if (error) {
+      showAlert("Google Sign-in Failed", error.message, "destructive");
     }
   };
 
@@ -150,10 +196,21 @@ export default function LoginPage() {
                 )}
               />
               <Button type="submit" className="w-full">
-                Log In
+                Log In with Email
               </Button>
             </form>
           </Form>
+          <div className="relative mt-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+          <Button onClick={handleGoogleSignIn} className="w-full mt-4">
+            Log In with Google
+          </Button>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="underline">
