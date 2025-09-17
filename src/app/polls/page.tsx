@@ -16,20 +16,19 @@ import {
   Loader2,
   Calendar,
   HourglassIcon,
-  TrendingUp,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { convertFileUrlToHtml } from "../../lib/fileExtractor"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { formatDistanceToNow } from "date-fns"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import PollResultsGraph from "@/components/PollResultsGraph"
 
 // Interfaces for data types
 interface Poll {
@@ -398,14 +397,14 @@ export default function PollsPage() {
               <SelectTrigger>
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {pollCategories.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {pollCategories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
@@ -452,7 +451,7 @@ export default function PollsPage() {
                             Expired
                           </Badge>
                         )}
-                         {/* This badge will now always show "Multiple Choice" or you can remove it */}
+                          {/* This badge will now always show "Multiple Choice" or you can remove it */}
                           <Badge variant="secondary" className="text-xs">
                             Multiple Choice
                           </Badge>
@@ -577,35 +576,14 @@ export default function PollsPage() {
         {/* Dialogs remain the same as before */}
         <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
           <DialogContent className="sm:max-w-2xl">
-            <DialogHeader className="space-y-3">
+            <DialogHeader>
               <DialogTitle className="text-2xl">Poll Results</DialogTitle>
-              <DialogDescription className="text-base font-medium text-foreground">
-                {selectedPoll?.question}
-              </DialogDescription>
-              <Separator />
             </DialogHeader>
-            {isResultsLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                <p className="text-muted-foreground">Loading results...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={pollResults} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                      <XAxis dataKey="name" interval={0} angle={-45} textAnchor="end" height={80} fontSize={12} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="votes" fill="hsl(var(--primary))" name="Votes" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="text-center text-sm text-muted-foreground">
-                  Total votes: {pollResults.reduce((sum, result) => sum + result.votes, 0)}
-                </div>
-              </div>
-            )}
+            <PollResultsGraph
+              pollResults={pollResults}
+              isLoading={isResultsLoading}
+              pollQuestion={selectedPoll?.question || ""}
+            />
           </DialogContent>
         </Dialog>
 
