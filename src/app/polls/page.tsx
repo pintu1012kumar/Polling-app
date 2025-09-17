@@ -1,34 +1,37 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import {
   CheckCheck,
   Download,
-  FileText,
   X,
-  RefreshCw,
-  Terminal,
-  BarChartIcon,
   Vote,
   Loader2,
   Calendar,
   HourglassIcon,
+  MessageCircle,
+  Search,
+  Filter,
+  TrendingUp,
+  Clock,
+  Eye,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { convertFileUrlToHtml } from "../../lib/fileExtractor"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { convertFileUrlToHtml } from "@/lib/fileExtractor"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
-import { formatDistanceToNow } from "date-fns"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import PollResultsGraph from "@/components/PollResultsGraph"
+import PollComments from "../../components/PollComments"
+import { toast } from "sonner"
 
 // Interfaces for data types
 interface Poll {
@@ -75,6 +78,8 @@ export default function PollsPage() {
   const [isFileLoading, setIsFileLoading] = useState(false)
 
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false)
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false)
+
   const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null)
   const [pollResults, setPollResults] = useState<PollResult[]>([])
   const [isResultsLoading, setIsResultsLoading] = useState(false)
@@ -82,26 +87,7 @@ export default function PollsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
 
-  const [alert, setAlert] = useState<{
-    show: boolean
-    title: string
-    description: string
-    variant: "default" | "destructive"
-  }>({
-    show: false,
-    title: "",
-    description: "",
-    variant: "default",
-  })
-
   const router = useRouter()
-
-  const showAlert = (title: string, description: string, variant: "default" | "destructive" = "default") => {
-    setAlert({ show: true, title, description, variant })
-    setTimeout(() => {
-      setAlert((prev) => ({ ...prev, show: false }))
-    }, 5000)
-  }
 
   const getPollStatus = (poll: Poll) => {
     const now = new Date()
@@ -117,56 +103,61 @@ export default function PollsPage() {
     return "active"
   }
 
-  const fetchPolls = async (userId: string) => {
-    let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
+  const fetchPolls = useCallback(
+    async (userId: string) => {
+      let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
 
-    const now = new Date().toISOString()
-    query = query.or(`end_at.gte.${now},end_at.is.null`)
+      const now = new Date().toISOString()
+      query = query.or(`end_at.gte.${now},end_at.is.null`)
 
-    if (searchQuery) {
-      query = query.ilike("question", `%${searchQuery}%`)
-    }
+      if (searchQuery) {
+        query = query.ilike("question", `%${searchQuery}%`)
+      }
 
-    if (selectedCategory && selectedCategory !== "all") {
-      query = query.contains("tags", [selectedCategory]);
-    }
+      if (selectedCategory && selectedCategory !== "all") {
+        query = query.contains("tags", [selectedCategory])
+      }
 
-    const { data: pollData, error: pollError } = await query
+      const { data: pollData, error: pollError } = await query
 
-    const { data: responseData, error: responseError } = await supabase
-      .from("poll_selected_options")
-      .select("poll_id, selected_option")
-      .eq("user_id", userId)
+      const { data: responseData, error: responseError } = await supabase
+        .from("poll_selected_options")
+        .select("poll_id, selected_option")
+        .eq("user_id", userId)
 
-    if (pollError || responseError) {
-      console.error(pollError || responseError)
-      showAlert("Error", "Failed to fetch polls.", "destructive")
-      return
-    }
+      if (pollError || responseError) {
+        console.error(pollError || responseError)
+        toast.error("Failed to fetch polls.", { description: pollError?.message || responseError?.message })
+        return
+      }
 
-    if (pollData) setPolls(pollData)
+      if (pollData) setPolls(pollData)
 
-    if (responseData) {
-      const votedIds = new Set(responseData.map((response) => response.poll_id))
-      setVotedPolls(votedIds)
+      if (responseData) {
+        const votedIds = new Set(responseData.map((response) => response.poll_id))
+        setVotedPolls(votedIds)
 
-      const votes = responseData.reduce(
-        (acc, current) => {
-          if (!acc[current.poll_id]) {
-            acc[current.poll_id] = []
-          }
-          acc[current.poll_id].push(current.selected_option)
-          return acc
-        },
-        {} as Record<string, string[]>,
-      )
-      setUserVotes(votes)
-    }
-  }
+        const votes = responseData.reduce(
+          (acc, current) => {
+            if (!acc[current.poll_id]) {
+              acc[current.poll_id] = []
+            }
+            acc[current.poll_id].push(current.selected_option)
+            return acc
+          },
+          {} as Record<string, string[]>,
+        )
+        setUserVotes(votes)
+      }
+    },
+    [searchQuery, selectedCategory],
+  )
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (!session) {
         router.push("/login")
       } else {
@@ -177,7 +168,7 @@ export default function PollsPage() {
           .single()
 
         if (userError || !userData) {
-          showAlert("Error", "Failed to fetch user role", "destructive")
+          toast.error("Failed to fetch user role", { description: userError?.message })
           router.push("/login")
           return
         }
@@ -189,7 +180,7 @@ export default function PollsPage() {
         } else if (userData.role === "user") {
           fetchPolls(session.user.id)
         } else {
-          showAlert("Error", "Unknown user role", "destructive")
+          toast.error("Unknown user role", { description: "Please contact support." })
           router.push("/login")
         }
       }
@@ -207,18 +198,7 @@ export default function PollsPage() {
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [router])
-
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        fetchPolls(session.user.id)
-      }
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory])
+  }, [router, fetchPolls])
 
   const handleShowResults = async (poll: Poll) => {
     setSelectedPoll(poll)
@@ -232,7 +212,7 @@ export default function PollsPage() {
 
     if (error) {
       console.error("Error fetching poll results:", error)
-      showAlert("Error", "Failed to fetch poll results.", "destructive")
+      toast.error("Failed to fetch poll results.", { description: error.message })
       setIsResultsLoading(false)
       return
     }
@@ -254,22 +234,29 @@ export default function PollsPage() {
     setIsResultsLoading(false)
   }
 
+  const handleShowComments = (poll: Poll) => {
+    setSelectedPoll(poll)
+    setIsCommentsModalOpen(true)
+  }
+
   const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
     const optionsToSubmit = selectedOptions[pollId] || []
 
     if (optionsToSubmit.length === 0) {
-      showAlert("Info", "Please select at least one option!", "default")
+      toast.info("Please select at least one option!")
       return
     }
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     if (!session) {
       router.push("/login")
       return
     }
 
     if (votedPolls.has(pollId)) {
-      showAlert("Info", "You have already voted on this poll!", "default")
+      toast.info("You have already voted on this poll!")
       return
     }
 
@@ -285,9 +272,9 @@ export default function PollsPage() {
 
     if (error) {
       console.error(error)
-      showAlert("Error", "Failed to submit vote. Please try again.", "destructive")
+      toast.error("Failed to submit vote. Please try again.", { description: error.message })
     } else {
-      showAlert("Success", "Vote submitted successfully!", "default")
+      toast.success("Vote submitted successfully!")
       setVotedPolls((prev) => new Set(prev).add(pollId))
       setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
       setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
@@ -350,270 +337,327 @@ export default function PollsPage() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
+      toast.success("File download started.")
     } catch (error) {
       console.error("Error downloading the file:", error)
-      showAlert("Error", "Failed to download the file.", "destructive")
+      toast.error("Failed to download the file.", { description: "Please check the file's availability." })
     }
   }
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">Loading polls...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-muted/20">
+        <div className="flex flex-col items-center space-y-6 p-8 rounded-xl bg-card shadow-lg border-2">
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-bold text-foreground">Loading Polls</h3>
+            <p className="text-sm text-muted-foreground">Please wait while we load the latest polls...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {alert.show && (
-          <div className="fixed bottom-4 right-4 z-[9999]">
-            <Alert variant={alert.variant} className="w-[300px]">
-              <Terminal className="h-4 w-4" />
-              <AlertTitle>{alert.title}</AlertTitle>
-              <AlertDescription>{alert.description}</AlertDescription>
-            </Alert>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
+      <div className="container mx-auto px-4 py-12 max-w-4xl">
+        <div className="text-center mb-12 space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-accent/10 rounded-full mb-4">
+            <Vote className="w-8 h-8 text-accent" />
           </div>
-        )}
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Available Polls</h1>
-          <p className="text-muted-foreground">Cast your vote on the latest polls</p>
+          <h1 className="text-5xl font-extrabold tracking-tight text-black">Available Polls</h1>
+          <p className="text-xl text-black max-w-2xl mx-auto text-balance">
+            Cast your vote on the latest polls and make your voice heard
+          </p>
         </div>
 
-        {/* Search and Filter UI */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-          <div className="w-full sm:w-1/2">
-            <Input
-              placeholder="Search polls..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-1/2 md:w-1/4">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {pollCategories.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="mb-12 space-y-4">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex-1 max-w-md relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Input
+                placeholder="Search polls by question..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-12 bg-card border-2 focus:border-accent transition-colors text-base"
+              />
+            </div>
+            <div className="flex gap-3 items-center">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-[220px] h-12 pl-12 bg-card border-2 focus:border-accent">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {pollCategories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedCategory && selectedCategory !== "all" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedCategory("all")}
+                  className="h-12 border-2 hover:border-accent transition-colors"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Clear Filter
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
         {polls.length === 0 ? (
-          <Card className="text-center py-12">
+          <Card className="text-center py-16 border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-card to-muted/10">
             <CardContent>
-              <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No polls available</h3>
-              <p className="text-muted-foreground">Check back later for new polls to vote on.</p>
+              <div className="w-24 h-24 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Vote className="h-12 w-12 text-accent" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3 text-black">No polls available</h3>
+              <p className="text-black text-lg max-w-md mx-auto text-balance">
+                Check back later for new polls to vote on.
+              </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <Accordion type="multiple" className="space-y-4">
             {polls.map((poll) => {
               const hasVoted = votedPolls.has(poll.id)
               const votedOptions = userVotes[poll.id] || []
               const hasPendingVotes = selectedOptions[poll.id]?.length > 0
               const status = getPollStatus(poll)
               const isActive = status === "active"
-              // const isMultiple = poll.poll_type === "multiple" // No longer needed
+              const isMultiple = poll.poll_type === "multiple"
 
               return (
-                <Card key={poll.id} className="transition-all duration-200 hover:shadow-md">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <CardTitle className="text-xl leading-tight">{poll.question}</CardTitle>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        {status === "upcoming" && (
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Upcoming
-                          </Badge>
-                        )}
-                        {status === "active" && (
-                          <Badge variant="default" className="flex items-center gap-1">
-                            <HourglassIcon className="w-3 h-3" />
-                            Active
-                          </Badge>
-                        )}
-                        {status === "expired" && (
-                          <Badge variant="destructive" className="flex items-center gap-1">
-                            <HourglassIcon className="w-3 h-3" />
-                            Expired
-                          </Badge>
-                        )}
-                          {/* This badge will now always show "Multiple Choice" or you can remove it */}
-                          <Badge variant="secondary" className="text-xs">
-                            Multiple Choice
-                          </Badge>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(poll.tags || []).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                      <p>
-                        **Start:** {poll.start_at ? new Date(poll.start_at).toLocaleString() : "Not specified"}
-                      </p>
-                      <p>
-                        **End:** {poll.end_at ? new Date(poll.end_at).toLocaleString() : "Not specified"}
-                      </p>
-                      {isActive && (
-                        <p className="text-xs font-semibold text-primary">
-                          Expires {formatDistanceToNow(new Date(poll.end_at!), { addSuffix: true })}
-                        </p>
-                      )}
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
-                        const isVotedOption = hasVoted && votedOptions.includes(opt)
-                        const isSelected = selectedOptions[poll.id]?.includes(opt)
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all duration-200 ${
-                              hasVoted
-                                ? isVotedOption
-                                  ? "border-primary bg-primary/5"
-                                  : "border-muted bg-muted/30 opacity-60"
-                                : isSelected
-                                ? "border-primary bg-primary/5"
-                                : "border-muted hover:border-muted-foreground/30 hover:bg-muted/50"
-                            } ${!isActive && "pointer-events-none opacity-50"}`}
-                            onClick={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
-                          >
-                            <Checkbox
-                              id={`${poll.id}-option-${idx}`}
-                              checked={isSelected || isVotedOption}
-                              onCheckedChange={() => handleToggleOption(poll.id, opt)}
-                              disabled={!isActive || hasVoted}
-                            />
-                            <Label htmlFor={`${poll.id}-option-${idx}`} className="flex-1 cursor-pointer font-medium">
-                              {opt}
-                            </Label>
-                            {isVotedOption && <CheckCheck className="h-4 w-4 text-primary shrink-0" />}
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
-                      <div className="flex flex-wrap gap-2">
-                        {poll.file_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDirectDownload(poll.file_url!)}
-                            className="flex items-center gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            Download
-                          </Button>
-                        )}
-                        {poll.file_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewFile(poll)}
-                            className="flex items-center gap-2"
-                          >
-                            <FileText className="h-4 w-4" />
-                            View File
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleShowResults(poll)}
-                          className="flex items-center gap-2"
-                        >
-                          <BarChartIcon className="h-4 w-4" />
-                          Results
-                        </Button>
-                      </div>
-
-                      {isActive && !hasVoted && (
-                        <Button
-                          onClick={() => handleVote(poll.id, poll.poll_type)}
-                          disabled={isSubmitting || !hasPendingVotes}
-                          className="w-full sm:w-auto"
-                          size="default"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
-                            </>
-                          ) : (
-                            "Submit Vote"
+                <AccordionItem
+                  key={poll.id}
+                  value={poll.id}
+                  className="border border-border rounded-lg bg-card shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <div className="flex items-center justify-between w-full text-left">
+                      <div className="flex-1 pr-4">
+                        <h3 className="text-lg font-bold text-black text-balance">{poll.question}</h3>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {status === "upcoming" && (
+                            <Badge
+                              variant="outline"
+                              className="flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 text-xs"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              Upcoming
+                            </Badge>
                           )}
-                        </Button>
-                      )}
+                          {status === "active" && (
+                            <Badge className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs">
+                              <HourglassIcon className="w-3 h-3" />
+                              Active
+                            </Badge>
+                          )}
+                          {status === "expired" && (
+                            <Badge variant="destructive" className="flex items-center gap-1 text-xs">
+                              <HourglassIcon className="w-3 h-3" />
+                              Expired
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20 text-xs">
+                            {isMultiple ? "Multiple" : "Single"}
+                          </Badge>
+                          {hasVoted && (
+                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                              <CheckCheck className="w-3 h-3 mr-1" />
+                              Voted
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </AccordionTrigger>
+
+                  <AccordionContent className="px-6 pb-6">
+                    <div className="space-y-4">
+                      <Separator />
+
+                      {/* Poll timing information */}
+                      <div className="space-y-2 text-sm text-black bg-muted/20 p-4 rounded-lg">
+                        <p className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-accent" />
+                          <span className="font-medium">Start:</span>{" "}
+                          {poll.start_at ? new Date(poll.start_at).toLocaleDateString() : "Not specified"}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-accent" />
+                          <span className="font-medium">End:</span>{" "}
+                          {poll.end_at ? new Date(poll.end_at).toLocaleDateString() : "Not specified"}
+                        </p>
+                      </div>
+
+                      {/* Poll options */}
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-black">Options:</h4>
+                        {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
+                          const isVotedOption = hasVoted && votedOptions.includes(opt)
+                          const isSelected = selectedOptions[poll.id]?.includes(opt)
+
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center space-x-3 p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                                hasVoted
+                                  ? isVotedOption
+                                    ? "border-accent bg-accent/5 shadow-sm"
+                                    : "border-muted bg-muted/20 opacity-60"
+                                  : isSelected
+                                    ? "border-accent bg-accent/5 shadow-sm"
+                                    : "border-muted hover:border-accent/50 hover:bg-muted/30"
+                              } ${!isActive && "pointer-events-none opacity-50"}`}
+                              onClick={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
+                            >
+                              <Checkbox
+                                id={`${poll.id}-option-${idx}`}
+                                checked={isSelected || isVotedOption}
+                                onCheckedChange={() => handleToggleOption(poll.id, opt)}
+                                disabled={!isActive || hasVoted}
+                                className="w-5 h-5"
+                              />
+                              <Label
+                                htmlFor={`${poll.id}-option-${idx}`}
+                                className="flex-1 cursor-pointer font-medium text-black"
+                              >
+                                {opt}
+                              </Label>
+                              {isVotedOption && <CheckCheck className="h-5 w-5 text-accent shrink-0" />}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-col gap-4 pt-4">
+                        <div className="flex flex-wrap gap-2">
+                          {poll.file_url && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewFile(poll)}
+                                className="flex items-center gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                View File
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDirectDownload(poll.file_url!)}
+                                className="flex items-center gap-2"
+                              >
+                                <Download className="h-4 w-4" />
+                                Download
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleShowResults(poll)}
+                            className="flex items-center gap-2"
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                            View Results
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleShowComments(poll)}
+                            className="flex items-center gap-2"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Comments
+                          </Button>
+                        </div>
+
+                        {isActive && !hasVoted && (
+                          <Button
+                            onClick={() => handleVote(poll.id, poll.poll_type)}
+                            disabled={isSubmitting || !hasPendingVotes}
+                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Submitting Vote...
+                              </>
+                            ) : (
+                              <>
+                                <Vote className="h-4 w-4 mr-2" />
+                                Submit Vote
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               )
             })}
-          </div>
+          </Accordion>
         )}
 
-        {/* Dialogs remain the same as before */}
+        {/* Modals */}
         <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl">Poll Results</DialogTitle>
             </DialogHeader>
-            <PollResultsGraph
-              pollResults={pollResults}
-              isLoading={isResultsLoading}
-              pollQuestion={selectedPoll?.question || ""}
-            />
+            <div className="py-4">
+              <PollResultsGraph
+                pollResults={pollResults}
+                isLoading={isResultsLoading}
+                pollQuestion={selectedPoll?.question || ""}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 
-        {showFileModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
-            <div className="relative bg-background w-full max-w-4xl max-h-[90vh] rounded-lg shadow-2xl overflow-hidden border">
-              <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex justify-between items-center p-6 border-b z-10">
-                <h2 className="text-xl font-semibold">{fileModalTitle}</h2>
-                <Button variant="ghost" size="icon" onClick={() => setShowFileModal(false)} className="h-8 w-8">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+        <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Comments</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">{selectedPoll && <PollComments pollId={selectedPoll.id} />}</div>
+          </DialogContent>
+        </Dialog>
 
-              {isFileLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <p className="text-muted-foreground">Loading file content...</p>
-                </div>
-              ) : (
-                <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-                  <div
-                    className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: fileModalContent }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* File Modal */}
+        <Dialog open={showFileModal} onOpenChange={setShowFileModal}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">{fileModalTitle}</DialogTitle>
+            </DialogHeader>
+            {isFileLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground">Loading file content...</p>
+              </div>
+            ) : (
+              <div className="p-2 overflow-y-auto max-h-[calc(80vh-80px)]">
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: fileModalContent }}
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
