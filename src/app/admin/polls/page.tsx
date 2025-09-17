@@ -19,7 +19,6 @@ import {
   HourglassIcon,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -35,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import PollResultsGraph from "@/components/PollResultsGraph" // ⬅️ NEW IMPORT
 
 // Interfaces for data types
 interface Poll {
@@ -699,42 +699,11 @@ export default function AdminPollsPage() {
             </div>
             <DialogDescription className="font-semibold">{selectedPoll?.question}</DialogDescription>
           </DialogHeader>
-          {isResultsLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-muted-foreground">Loading results...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={pollResults} margin={{ top: 20, right: 10, left: 10, bottom: 60 }}>
-                    <XAxis
-                      dataKey="name"
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="votes" fill="hsl(var(--primary))" name="Votes" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {pollResults.map((result, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">{result.name}</span>
-                    <Badge variant="secondary">{result.votes} votes</Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <PollResultsGraph
+            pollResults={pollResults}
+            isLoading={isResultsLoading}
+            pollQuestion={selectedPoll?.question || ""}
+          />
         </DialogContent>
       </Dialog>
 
