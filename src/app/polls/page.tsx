@@ -239,54 +239,63 @@ export default function PollsPage() {
     setIsCommentsModalOpen(true)
   }
 
-  const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
-    const optionsToSubmit = selectedOptions[pollId] || []
+const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
+  const optionsToSubmit = selectedOptions[pollId] || []
 
-    if (optionsToSubmit.length === 0) {
-      toast.info("Please select at least one option!")
-      return
-    }
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) {
-      router.push("/login")
-      return
-    }
-
-    if (votedPolls.has(pollId)) {
-      toast.info("You have already voted on this poll!")
-      return
-    }
-
-    setIsSubmitting(true)
-
-    const votesToInsert = optionsToSubmit.map((option) => ({
-      poll_id: pollId,
-      user_id: session.user.id,
-      selected_option: option,
-    }))
-
-    const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
-
-    if (error) {
-      console.error(error)
-      toast.error("Failed to submit vote. Please try again.", { description: error.message })
-    } else {
-      toast.success("Vote submitted successfully!")
-      setVotedPolls((prev) => new Set(prev).add(pollId))
-      setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
-      setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
-    }
-
-    setIsSubmitting(false)
+  if (optionsToSubmit.length === 0) {
+    toast.info("Please select at least one option!")
+    return
   }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) {
+    router.push("/login")
+    return
+  }
+
+  // This is the crucial check that prevents the duplicate vote
+  if (votedPolls.has(pollId)) {
+    toast.info("You have already voted on this poll!")
+    return // Stop the function here to prevent the database call.
+  }
+
+  setIsSubmitting(true)
+
+  const votesToInsert = optionsToSubmit.map((option) => ({
+    poll_id: pollId,
+    user_id: session.user.id,
+    selected_option: option,
+  }))
+
+  const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
+
+  if (error) {
+    console.error(error)
+    toast.error("Failed to submit vote. Please try again.", { description: error.message })
+  } else {
+    toast.success("Vote submitted successfully!")
+    setVotedPolls((prev) => new Set(prev).add(pollId))
+    setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
+    setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
+  }
+
+  setIsSubmitting(false)
+}
 
   const handleToggleOption = (pollId: string, option: string) => {
     setSelectedOptions((prev) => {
       const currentSelections = prev[pollId] || []
       const isSelected = currentSelections.includes(option)
+      const poll = polls.find(p => p.id === pollId);
+
+      if (poll?.poll_type === "single") {
+        return {
+          ...prev,
+          [pollId]: isSelected ? [] : [option],
+        };
+      }
 
       if (isSelected) {
         return {
@@ -434,6 +443,7 @@ export default function PollsPage() {
               const status = getPollStatus(poll)
               const isActive = status === "active"
               const isMultiple = poll.poll_type === "multiple"
+              const selectedThisSession = selectedOptions[poll.id] || []
 
               return (
                 <AccordionItem
@@ -504,7 +514,7 @@ export default function PollsPage() {
                         <h4 className="font-semibold text-black">Options:</h4>
                         {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
                           const isVotedOption = hasVoted && votedOptions.includes(opt)
-                          const isSelected = selectedOptions[poll.id]?.includes(opt)
+                          const isSelected = selectedThisSession.includes(opt)
 
                           return (
                             <div

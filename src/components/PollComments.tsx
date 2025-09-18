@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -90,19 +90,23 @@ const CommentItem = ({
   onToggleReplies,
   isPostingReply,
 }: any) => {
-  const isExpanded = expandedComments.has(comment.id)
-  const isReplyingHere = replyingTo === comment.id
+  const isExpanded = expandedComments.has(comment.id);
+  const isReplyingHere = replyingTo === comment.id;
+
+  // Add a safe check for the author_username
+  const authorUsername = comment.author_username || 'Guest User';
+  const authorInitials = authorUsername.slice(0, 2).toUpperCase();
 
   return (
     <div className="py-4 first:pt-0 last:pb-0">
       <div className="flex items-start gap-4">
         <Avatar className="w-9 h-9 flex-shrink-0">
-          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author_username}`} />
-          <AvatarFallback>{comment.author_username.slice(0, 2).toUpperCase()}</AvatarFallback>
+          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${authorUsername}`} />
+          <AvatarFallback>{authorInitials}</AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-            <span className="font-semibold text-sm text-foreground truncate">{comment.author_username}</span>
+            <span className="font-semibold text-sm text-foreground truncate">{authorUsername}</span>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             </span>
@@ -144,7 +148,7 @@ const CommentItem = ({
                 {currentUserId === comment.user_id && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-black transition-colors">
+                      <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-red-500 hover:text-red-600 transition-colors">
                         <Trash2 className="w-4 h-4 mr-1" /> Delete
                       </Button>
                     </AlertDialogTrigger>
@@ -158,7 +162,7 @@ const CommentItem = ({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(comment.id)} className="">
+                        <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -176,11 +180,10 @@ const CommentItem = ({
             )}
           </div>
 
-          {/* Reply input */}
           {isReplyingHere && (
             <div className="mt-4 space-y-2">
               <Textarea
-                placeholder={`Replying to ${comment.author_username}...`}
+                placeholder={`Replying to ${authorUsername}...`}
                 value={newCommentContent}
                 onChange={(e) => setNewCommentContent(e.target.value)}
                 className="bg-muted"
@@ -197,7 +200,6 @@ const CommentItem = ({
             </div>
           )}
 
-          {/* Nested replies */}
           {isExpanded && comment.children.length > 0 && (
             <div className="ml-4 mt-4 border-l-2 border-border pl-4">
               {comment.children.map((child: any) => (
@@ -224,9 +226,8 @@ const CommentItem = ({
         </div>
       </div>
     </div>
-  )
-}
-
+  );
+};
 export default function PollComments({ pollId }: PollCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>([])
   const [newCommentContent, setNewCommentContent] = useState("")
@@ -235,15 +236,15 @@ export default function PollComments({ pollId }: PollCommentsProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
-
-  const fetchComments = async () => {
+const fetchComments = useCallback(async () => {
     setIsLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     setCurrentUserId(session?.user.id || null)
 
+    // The query is simplified, PostgREST can now find the relationship
     const { data, error } = await supabase
-      .from("comments")
-      .select("*, profiles(username)")
+      .from("poll_comments")
+      .select("*, users(name)") 
       .eq("poll_id", pollId)
       .order("created_at", { ascending: false })
 
@@ -256,16 +257,16 @@ export default function PollComments({ pollId }: PollCommentsProps) {
 
     const mapped: Comment[] = data.map((c: any) => ({
       ...c,
-      author_username: c.profiles.username,
+      author_username: c.users.name,
     }))
 
     setComments(buildCommentTree(mapped))
     setIsLoading(false)
-  }
+}, [pollId])
 
   useEffect(() => {
     fetchComments()
-  }, [pollId])
+  }, [pollId, fetchComments])
 
   const handlePostComment = async () => {
     if (!newCommentContent.trim()) {
@@ -288,7 +289,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       parent_id: replyingTo,
     }
 
-    const { error } = await supabase.from("comments").insert(newComment)
+    const { error } = await supabase.from("poll_comments").insert(newComment)
     if (error) {
       console.error(error)
       toast.error("Failed to post comment", { description: error.message })
@@ -302,20 +303,29 @@ export default function PollComments({ pollId }: PollCommentsProps) {
   }
 
   const handleVote = async (id: string, type: "up" | "down") => {
-    const { data, error } = await supabase.rpc("update_comment_vote", {
-      comment_id: id,
-      vote_type: type === "up" ? 1 : -1,
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      toast.error("Authentication required", { description: "You must be logged in to vote." })
+      return
+    }
+
+    const { error } = await supabase.rpc("update_comment_vote", {
+      comment_id_param: id,
+      vote_type_param: type === "up" ? 1 : -1,
+      user_id_param: session.user.id
     })
+    
     if (error) {
       console.error(error)
       toast.error("Failed to vote", { description: "You may have already voted on this comment." })
     } else {
       fetchComments()
+      toast.success("Vote registered!")
     }
   }
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("comments").delete().eq("id", id)
+    const { error } = await supabase.from("poll_comments").delete().eq("id", id)
     if (error) {
       console.error(error)
       toast.error("Failed to delete comment")
@@ -326,7 +336,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
   }
 
   const handleFlag = async (id: string) => {
-    const { error } = await supabase.from("comments").update({ is_flagged: true }).eq("id", id)
+    const { error } = await supabase.from("poll_comments").update({ is_flagged: true }).eq("id", id)
     if (error) {
       console.error(error)
       toast.error("Failed to flag comment")
@@ -361,8 +371,11 @@ export default function PollComments({ pollId }: PollCommentsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="text-xl font-bold border-b pb-2 text-foreground">
+      <div className="text-xl font-bold border-b pb-2 text-foreground flex items-center justify-between">
         Comments ({comments.length})
+        <Button variant="ghost" onClick={fetchComments} size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        </Button>
       </div>
 
       {/* Root input */}

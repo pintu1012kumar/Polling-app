@@ -1,4 +1,3 @@
-// components/Navbar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import Notifications from "./Notifications";
 
 const LogoutButton = () => {
   const router = useRouter();
@@ -51,9 +51,8 @@ export default function Navbar() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session && session.user) {
-        // Fetch user data from both auth.users and public.users tables
         const { data: profileData, error: profileError } = await supabase
-          .from("users") // Your custom users table
+          .from("users")
           .select("role, name, profile_picture_url, bio")
           .eq("id", session.user.id)
           .single();
@@ -120,31 +119,34 @@ export default function Navbar() {
         {isAuthLoading ? (
           <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
         ) : user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full focus-visible:ring-0">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.profile_picture_url} alt={user.name || "User"} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium leading-none">{user.name || "Guest User"}</p>
-                    {user.role && <Badge variant="secondary" className="text-xs">{user.role}</Badge>}
+          <>
+            <Notifications />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full focus-visible:ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.profile_picture_url} alt={user.name || "User"} />
+                    <AvatarFallback className="bg-primary/20 text-primary">
+                      {getInitials(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium leading-none">{user.name || "Guest User"}</p>
+                      {user.role && <Badge variant="secondary" className="text-xs">{user.role}</Badge>}
+                    </div>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                   </div>
-                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <LogoutButton />
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <LogoutButton />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         ) : (
           <Link href="/login" passHref>
             <Button>

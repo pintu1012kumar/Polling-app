@@ -257,7 +257,7 @@ export default function AdminPollsPage() {
     }
   }
 
-  const handleSavePoll = async () => {
+const handleSavePoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) {
       showAlert("Validation Error", "Please fill in the question and all 4 options.", "destructive")
       return
@@ -314,27 +314,34 @@ export default function AdminPollsPage() {
     }
 
     if (editingId) {
-      const { error } = await supabase.from("polls").upsert(pollData).eq("id", editingId)
-      if (error) {
-        console.error("Error updating poll:", error.message)
+      try {
+        // Delete the old poll first to 'replace' it
+        const { error: deleteError } = await supabase.from("polls").delete().eq("id", editingId)
+        if (deleteError) throw deleteError
+
+        // Then create the new poll with the updated data
+        const { error: insertError } = await supabase.from("polls").insert([pollData])
+        if (insertError) throw insertError
+
+        showAlert("Success", "Poll updated successfully. (Old version deleted)", "default")
+      } catch (error) {
+        console.error("Error during poll replacement:", error.message)
         showAlert("Error", "Failed to update poll.", "destructive")
-      } else {
-        showAlert("Success", "Poll updated successfully.", "default")
-        resetForm()
-        fetchPolls()
       }
     } else {
+      // Original logic for creating a new poll
       const { error } = await supabase.from("polls").insert([pollData])
       if (error) {
         console.error("Error creating poll:", error.message)
         showAlert("Error", "Failed to create poll.", "destructive")
       } else {
         showAlert("Success", "Poll created successfully.", "default")
-        resetForm()
-        fetchPolls()
       }
     }
+
     setLoading(false)
+    resetForm()
+    fetchPolls()
   }
 
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
