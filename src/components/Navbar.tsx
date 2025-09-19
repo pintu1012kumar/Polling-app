@@ -1,3 +1,4 @@
+// components/Navbar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Notifications from "./Notifications";
+import ThemeToggle from "./ThemeToggle";
 
 const LogoutButton = () => {
   const router = useRouter();
@@ -111,7 +113,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 text-black bg-gray-100 p-4 flex justify-between items-center ">
+    <nav className="sticky top-0 z-50 p-4 flex justify-between items-center border-b bg-card/50 shadow-sm backdrop-blur-sm transition-colors duration-300">
       <div className="text-xl font-bold">
         <Link href="/">Polling App</Link>
       </div>
@@ -120,6 +122,7 @@ export default function Navbar() {
           <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
         ) : user ? (
           <>
+            <ThemeToggle />
             <Notifications />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -148,11 +151,14 @@ export default function Navbar() {
             </DropdownMenu>
           </>
         ) : (
-          <Link href="/login" passHref>
-            <Button>
-              Login
-            </Button>
-          </Link>
+          <>
+            <ThemeToggle />
+            <Link href="/login" passHref>
+              <Button>
+                Login
+              </Button>
+            </Link>
+          </>
         )}
       </div>
     </nav>

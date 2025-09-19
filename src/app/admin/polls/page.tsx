@@ -1,11 +1,10 @@
-"use client"
+'use client'
 
-import type React from "react"
-
-import { useState, useEffect, useCallback } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import { convertFileUrlToHtml } from "@/lib/fileExtractor"
-import { useRouter } from "next/navigation"
+import type React from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { convertFileUrlToHtml } from '@/lib/fileExtractor'
+import { useRouter } from 'next/navigation'
 import {
   PlusCircle,
   Pencil,
@@ -24,19 +23,32 @@ import {
   Filter,
   Eye,
   Clock,
-} from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { formatDistanceToNow } from "date-fns"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import PollResultsGraph from "@/components/PollResultsGraph"
-import PollComments from "../../../components/PollComments"
+} from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { formatDistanceToNow } from 'date-fns'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import PollResultsGraph from '@/components/PollResultsGraph'
+import PollComments from '../../../components/PollComments'
+import { PostgrestError } from '@supabase/supabase-js'
 
 // Interfaces for data types
 interface Poll {
@@ -46,7 +58,7 @@ interface Poll {
   option2: string
   option3: string
   option4: string
-  poll_type: "single" | "multiple" | "ranked"
+  poll_type: 'single' | 'multiple' | 'ranked'
   file_url?: string
   file_type?: string
   created_at: string
@@ -62,11 +74,11 @@ interface PollResult {
 
 // Predefined categories for the dropdown
 const pollCategories = [
-  { value: "technology", label: "Technology" },
-  { value: "politics", label: "Politics" },
-  { value: "sports", label: "Sports" },
-  { value: "entertainment", label: "Entertainment" },
-  { value: "science", label: "Science" },
+  { value: 'technology', label: 'Technology' },
+  { value: 'politics', label: 'Politics' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'entertainment', label: 'Entertainment' },
+  { value: 'science', label: 'Science' },
 ]
 
 // File size constants in KB
@@ -75,15 +87,17 @@ const MAX_FILE_SIZE_KB = 5000
 
 export default function AdminPollsPage() {
   const [polls, setPolls] = useState<Poll[]>([])
-  const [question, setQuestion] = useState("")
-  const [options, setOptions] = useState(["", "", "", ""])
-  const [pollType, setPollType] = useState<"single" | "multiple" | "ranked">("single")
+  const [question, setQuestion] = useState('')
+  const [options, setOptions] = useState(['', '', '', ''])
+  const [pollType, setPollType] = useState<'single' | 'multiple' | 'ranked'>(
+    'single',
+  )
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [modalContent, setModalContent] = useState<string>("")
-  const [modalTitle, setModalTitle] = useState<string>("")
+  const [modalContent, setModalContent] = useState<string>('')
+  const [modalTitle, setModalTitle] = useState<string>('')
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [createPollModalOpen, setCreatePollModalOpen] = useState(false)
 
@@ -98,12 +112,12 @@ export default function AdminPollsPage() {
     show: boolean
     title: string
     description: string
-    variant: "default" | "destructive"
+    variant: 'default' | 'destructive'
   }>({
     show: false,
-    title: "",
-    description: "",
-    variant: "default",
+    title: '',
+    description: '',
+    variant: 'default',
   })
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -113,15 +127,19 @@ export default function AdminPollsPage() {
   } | null>(null)
 
   const [isModalContentLoading, setIsModalContentLoading] = useState(false)
-  const [startTime, setStartTime] = useState<string>("")
-  const [endTime, setEndTime] = useState<string>("")
-  const [tags, setTags] = useState<string>("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [startTime, setStartTime] = useState<string>('')
+  const [endTime, setEndTime] = useState<string>('')
+  const [tags, setTags] = useState<string>('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
   const router = useRouter()
 
-  const showAlert = (title: string, description: string, variant: "default" | "destructive" = "default") => {
+  const showAlert = (
+    title: string,
+    description: string,
+    variant: 'default' | 'destructive' = 'default',
+  ) => {
     setAlert({ show: true, title, description, variant })
     setTimeout(() => {
       setAlert((prev) => ({ ...prev, show: false }))
@@ -135,21 +153,21 @@ export default function AdminPollsPage() {
 
   const fetchPolls = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from("polls").select("*").order("created_at", { ascending: false })
+    let query = supabase.from('polls').select('*').order('created_at', { ascending: false })
 
     if (searchQuery) {
-      query = query.ilike("question", `%${searchQuery}%`)
+      query = query.ilike('question', `%${searchQuery}%`)
     }
 
-    if (selectedCategory && selectedCategory !== "all") {
-      query = query.contains("tags", [selectedCategory])
+    if (selectedCategory && selectedCategory !== 'all') {
+      query = query.contains('tags', [selectedCategory])
     }
 
     const { data, error } = await query
 
     if (error) {
-      console.error("Error fetching polls:", error.message)
-      showAlert("Error", "Failed to fetch polls.", "destructive")
+      console.error('Error fetching polls:', error.message)
+      showAlert('Error', 'Failed to fetch polls.', 'destructive')
     } else {
       setPolls(data || [])
     }
@@ -162,17 +180,21 @@ export default function AdminPollsPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
-        router.push("/login")
+        router.push('/login')
         return
       }
       const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", session.user.id)
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
         .single()
-      if (userError || !userData || userData.role !== "admin") {
-        showAlert("Access Denied", "You do not have permission to view this page.", "destructive")
-        router.push("/login")
+      if (userError || !userData || userData.role !== 'admin') {
+        showAlert(
+          'Access Denied',
+          'You do not have permission to view this page.',
+          'destructive',
+        )
+        router.push('/login')
         return
       }
       fetchPolls()
@@ -181,7 +203,7 @@ export default function AdminPollsPage() {
     checkAuth()
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
-        router.push("/login")
+        router.push('/login')
       }
     })
     return () => {
@@ -203,13 +225,13 @@ export default function AdminPollsPage() {
     setIsResultsLoading(true)
 
     const { data: responses, error } = await supabase
-      .from("poll_selected_options")
-      .select("selected_option")
-      .eq("poll_id", poll.id)
+      .from('poll_selected_options')
+      .select('selected_option')
+      .eq('poll_id', poll.id)
 
     if (error) {
-      console.error("Error fetching poll results:", error)
-      showAlert("Error", "Failed to fetch poll results.", "destructive")
+      console.error('Error fetching poll results:', error)
+      showAlert('Error', 'Failed to fetch poll results.', 'destructive')
       setIsResultsLoading(false)
       return
     }
@@ -243,11 +265,11 @@ export default function AdminPollsPage() {
       const fileSizeInKB = selectedFile.size / 1024
       if (fileSizeInKB < MIN_FILE_SIZE_KB || fileSizeInKB > MAX_FILE_SIZE_KB) {
         showAlert(
-          "File Size Error",
+          'File Size Error',
           `File size must be between ${MIN_FILE_SIZE_KB} KB and ${MAX_FILE_SIZE_KB} KB.`,
-          "destructive",
+          'destructive',
         )
-        e.target.value = ""
+        e.target.value = ''
         setFile(null)
         return
       }
@@ -257,14 +279,14 @@ export default function AdminPollsPage() {
     }
   }
 
-const handleSavePoll = async () => {
+  const handleSavePoll = async () => {
     if (!question.trim() || options.some((opt) => !opt.trim())) {
-      showAlert("Validation Error", "Please fill in the question and all 4 options.", "destructive")
+      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
       return
     }
 
     if (!startTime || !endTime) {
-      showAlert("Validation Error", "Please set both start and end times.", "destructive")
+      showAlert('Validation Error', 'Please set both start and end times.', 'destructive')
       return
     }
 
@@ -272,7 +294,7 @@ const handleSavePoll = async () => {
     const endDate = new Date(endTime)
 
     if (endDate <= startDate) {
-      showAlert("Validation Error", "End time must be after start time.", "destructive")
+      showAlert('Validation Error', 'End time must be after start time.', 'destructive')
       return
     }
 
@@ -281,17 +303,18 @@ const handleSavePoll = async () => {
     let fileType: string | null = null
     if (file) {
       try {
-        const ext = file.name.split(".").pop()
+        const ext = file.name.split('.').pop()
         const uniqueName = `${crypto.randomUUID()}.${ext}`
         const filePath = `polls/${uniqueName}`
-        const { error: uploadError } = await supabase.storage.from("poll-files").upload(filePath, file)
+        const { error: uploadError } = await supabase.storage.from('poll-files').upload(filePath, file)
         if (uploadError) throw uploadError
-        const { data } = supabase.storage.from("poll-files").getPublicUrl(filePath)
+        const { data } = supabase.storage.from('poll-files').getPublicUrl(filePath)
         fileUrl = data.publicUrl
         fileType = file.type
       } catch (err) {
-        console.error("File upload failed:", err)
-        showAlert("Error", "File upload failed. Please try again.", "destructive")
+        const error = err as PostgrestError
+        console.error('File upload failed:', error.message)
+        showAlert('Error', 'File upload failed. Please try again.', 'destructive')
         setLoading(false)
         return
       }
@@ -316,26 +339,27 @@ const handleSavePoll = async () => {
     if (editingId) {
       try {
         // Delete the old poll first to 'replace' it
-        const { error: deleteError } = await supabase.from("polls").delete().eq("id", editingId)
+        const { error: deleteError } = await supabase.from('polls').delete().eq('id', editingId)
         if (deleteError) throw deleteError
 
         // Then create the new poll with the updated data
-        const { error: insertError } = await supabase.from("polls").insert([pollData])
+        const { error: insertError } = await supabase.from('polls').insert([pollData])
         if (insertError) throw insertError
 
-        showAlert("Success", "Poll updated successfully. (Old version deleted)", "default")
-      } catch (error) {
-        console.error("Error during poll replacement:", error.message)
-        showAlert("Error", "Failed to update poll.", "destructive")
+        showAlert('Success', 'Poll updated successfully. (Old version deleted)', 'default')
+      } catch (err) {
+        const error = err as PostgrestError
+        console.error('Error during poll replacement:', error.message)
+        showAlert('Error', 'Failed to update poll.', 'destructive')
       }
     } else {
       // Original logic for creating a new poll
-      const { error } = await supabase.from("polls").insert([pollData])
+      const { error } = await supabase.from('polls').insert([pollData])
       if (error) {
-        console.error("Error creating poll:", error.message)
-        showAlert("Error", "Failed to create poll.", "destructive")
+        console.error('Error creating poll:', error.message)
+        showAlert('Error', 'Failed to create poll.', 'destructive')
       } else {
-        showAlert("Success", "Poll created successfully.", "default")
+        showAlert('Success', 'Poll created successfully.', 'default')
       }
     }
 
@@ -347,17 +371,18 @@ const handleSavePoll = async () => {
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
     try {
       if (fileUrl) {
-        const filePath = fileUrl.split("/poll-files/")[1]
+        const filePath = fileUrl.split('/poll-files/')[1]
         if (filePath) {
-          await supabase.storage.from("poll-files").remove([`polls/${filePath}`])
+          await supabase.storage.from('poll-files').remove([`polls/${filePath}`])
         }
       }
-      await supabase.from("polls").delete().eq("id", id)
-      showAlert("Success", "Poll deleted successfully.", "default")
+      await supabase.from('polls').delete().eq('id', id)
+      showAlert('Success', 'Poll deleted successfully.', 'default')
       fetchPolls()
     } catch (err) {
-      console.error("Unexpected error deleting poll:", err)
-      showAlert("Error", "Failed to delete poll.", "destructive")
+      const error = err as PostgrestError
+      console.error('Unexpected error deleting poll:', error.message)
+      showAlert('Error', 'Failed to delete poll.', 'destructive')
     }
   }
 
@@ -367,21 +392,21 @@ const handleSavePoll = async () => {
     setOptions([poll.option1, poll.option2, poll.option3, poll.option4])
     setPollType(poll.poll_type)
     setFile(null)
-    setStartTime(poll.start_at ? poll.start_at.substring(0, 16) : "")
-    setEndTime(poll.end_at ? poll.end_at.substring(0, 16) : "")
-    setTags(poll.tags && poll.tags.length > 0 ? poll.tags[0] : "")
+    setStartTime(poll.start_at ? poll.start_at.substring(0, 16) : '')
+    setEndTime(poll.end_at ? poll.end_at.substring(0, 16) : '')
+    setTags(poll.tags && poll.tags.length > 0 ? poll.tags[0] : '')
     setCreatePollModalOpen(true)
   }
 
   const resetForm = () => {
     setEditingId(null)
-    setQuestion("")
-    setOptions(["", "", "", ""])
-    setPollType("single")
+    setQuestion('')
+    setOptions(['', '', '', ''])
+    setPollType('single')
     setFile(null)
-    setStartTime("")
-    setEndTime("")
-    setTags("")
+    setStartTime('')
+    setEndTime('')
+    setTags('')
     setCreatePollModalOpen(false)
   }
 
@@ -390,13 +415,14 @@ const handleSavePoll = async () => {
     setModalTitle(`Extracted Text for: ${poll.question}`)
     setShowModal(true)
     setIsModalContentLoading(true)
-    setModalContent("")
+    setModalContent('')
     try {
       const html = await convertFileUrlToHtml(poll.file_url, poll.file_type)
       setModalContent(html)
     } catch (err) {
-      setModalContent("Failed to extract text.")
-      showAlert("Error", "Failed to extract text from the file.", "destructive")
+      const error = err as Error
+      setModalContent('Failed to extract text.')
+      showAlert('Error', `Failed to extract text from the file: ${error.message}`, 'destructive')
     } finally {
       setIsModalContentLoading(false)
     }
@@ -406,16 +432,17 @@ const handleSavePoll = async () => {
     try {
       const response = await fetch(fileUrl)
       const blob = await response.blob()
-      const filename = fileUrl.split("/").pop()
-      const a = document.createElement("a")
+      const filename = fileUrl.split('/').pop()
+      const a = document.createElement('a')
       a.href = window.URL.createObjectURL(blob)
-      a.download = filename || "download"
+      a.download = filename || 'download'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
     } catch (error) {
-      console.error("Error downloading the file:", error)
-      showAlert("Error", "Failed to download the file.", "destructive")
+      const err = error as Error
+      console.error('Error downloading the file:', err.message)
+      showAlert('Error', 'Failed to download the file.', 'destructive')
     }
   }
 
@@ -425,22 +452,26 @@ const handleSavePoll = async () => {
     const endTime = poll.end_at ? new Date(poll.end_at) : null
 
     if (startTime && now < startTime) {
-      return "upcoming"
+      return 'upcoming'
     }
     if (endTime && now > endTime) {
-      return "expired"
+      return 'expired'
     }
-    return "active"
+    return 'active'
   }
 
   if (isAuthLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-background to-muted/20">
-        <div className="flex flex-col items-center space-y-6 p-8 rounded-xl bg-card shadow-lg border">
-          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-center space-y-2">
-            <h3 className="text-xl font-bold text-foreground">Loading Admin Panel</h3>
-            <p className="text-sm text-muted-foreground">Please wait while we verify your access...</p>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-background to-muted/20">
+        <div className="flex flex-col items-center space-y-6 rounded-xl bg-card p-8 shadow-lg border">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+          <div className="space-y-2 text-center">
+            <h3 className="text-xl font-bold text-foreground">
+              Loading Admin Panel
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Please wait while we verify your access...
+            </p>
           </div>
         </div>
       </div>
@@ -449,12 +480,16 @@ const handleSavePoll = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="sticky top-0 z-40 border-b bg-card/50 shadow-sm backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-foreground">Poll Management</h1>
-              <p className="text-sm text-muted-foreground">Create and manage your polls</p>
+              <h1 className="text-2xl font-bold text-foreground">
+                Poll Management
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Create and manage your polls
+              </p>
             </div>
             <Button
               onClick={() => {
@@ -464,12 +499,12 @@ const handleSavePoll = async () => {
                 setStartTime(now.toISOString().substring(0, 16))
                 setEndTime(defaultEnd.toISOString().substring(0, 16))
                 setCreatePollModalOpen(true)
-                setTimeout(() => document.getElementById("question")?.focus(), 100)
+                setTimeout(() => document.getElementById('question')?.focus(), 100)
               }}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-200"
+              className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
               size="lg"
             >
-              <PlusCircle className="w-5 h-5 mr-2" />
+              <PlusCircle className="mr-2 h-5 w-5" />
               Create Poll
             </Button>
           </div>
@@ -478,31 +513,33 @@ const handleSavePoll = async () => {
 
       {alert.show && (
         <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-2">
-          <Alert variant={alert.variant} className="w-[380px] shadow-xl border-2">
+          <Alert variant={alert.variant} className="w-[380px] border-2 shadow-xl">
             <Terminal className="h-5 w-5" />
             <AlertTitle className="font-semibold">{alert.title}</AlertTitle>
-            <AlertDescription className="mt-1">{alert.description}</AlertDescription>
+            <AlertDescription className="mt-1">
+              {alert.description}
+            </AlertDescription>
           </Alert>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-8 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            <div className="flex-1 max-w-md relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
               <Input
                 placeholder="Search polls by question..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-card border-2 focus:border-accent transition-colors"
+                className="pl-10 border-2 bg-card focus:border-accent transition-colors"
               />
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex items-center gap-3">
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[200px] pl-10 bg-card border-2 focus:border-accent">
+                  <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
                     <SelectValue placeholder="Filter by category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -515,13 +552,13 @@ const handleSavePoll = async () => {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedCategory && selectedCategory !== "all" && (
+              {selectedCategory && selectedCategory !== 'all' && (
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedCategory("all")}
-                  className="border-2 hover:border-accent transition-colors"
+                  onClick={() => setSelectedCategory('all')}
+                  className="border-2 transition-colors hover:border-accent"
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="mr-2 h-4 w-4" />
                   Clear Filter
                 </Button>
               )}
@@ -530,82 +567,101 @@ const handleSavePoll = async () => {
         </div>
 
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 hover:border-accent/50 transition-colors">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-8">
+            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Polls</p>
-                    <p className="text-3xl font-bold text-foreground">{polls.length}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Polls
+                    </p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {polls.length}
+                    </p>
                   </div>
-                  <BarChartIcon className="w-8 h-8 text-accent" />
+                  <BarChartIcon className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 hover:border-accent/50 transition-colors">
+            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Polls</p>
-                    <p className="text-3xl font-bold text-green-600">
-                      {polls.filter((poll) => getPollStatus(poll) === "active").length}
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Active Polls
+                    </p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {
+                        polls.filter((poll) => getPollStatus(poll) === 'active')
+                          .length
+                      }
                     </p>
                   </div>
-                  <Clock className="w-8 h-8 text-green-600" />
+                  <Clock className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 hover:border-accent/50 transition-colors">
+            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {polls.filter((poll) => getPollStatus(poll) === "upcoming").length}
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Upcoming
+                    </p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {
+                        polls.filter((poll) => getPollStatus(poll) === 'upcoming')
+                          .length
+                      }
                     </p>
                   </div>
-                  <Calendar className="w-8 h-8 text-blue-600" />
+                  <Calendar className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 hover:border-accent/50 transition-colors">
+            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Expired</p>
-                    <p className="text-3xl font-bold text-red-600">
-                      {polls.filter((poll) => getPollStatus(poll) === "expired").length}
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Expired
+                    </p>
+                    <p className="text-3xl font-bold text-foreground">
+                      {
+                        polls.filter((poll) => getPollStatus(poll) === 'expired')
+                          .length
+                      }
                     </p>
                   </div>
-                  <HourglassIcon className="w-8 h-8 text-red-600" />
+                  <HourglassIcon className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {polls.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {polls.map((poll) => {
                 const status = getPollStatus(poll)
                 return (
                   <Card
                     key={poll.id}
-                    className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-accent/50 bg-gradient-to-br from-card to-card/80"
+                    className="group border-2 bg-gradient-to-br from-card to-card/80 transition-all duration-300 hover:border-accent/50 hover:shadow-xl"
                   >
                     <CardHeader className="pb-4">
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg font-bold line-clamp-2 mb-3 text-balance">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="mb-3 line-clamp-2 text-foreground text-lg font-bold">
                             {poll.question}
                           </CardTitle>
-                          <div className="flex items-center flex-wrap gap-2">
-                            <Badge variant="secondary" className="text-xs bg-muted/50">
-                              <Calendar className="w-3 h-3 mr-1" />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="bg-muted/50 text-xs">
+                              <Calendar className="mr-1 h-3 w-3 text-foreground" />
                               {new Date(poll.created_at).toLocaleDateString()}
                             </Badge>
                             {poll.file_url && (
                               <Badge variant="outline" className="text-xs border-accent/50">
-                                <FileText className="w-3 h-3 mr-1" />
+                                <FileText className="mr-1 h-3 w-3" />
                                 Document
                               </Badge>
                             )}
@@ -613,26 +669,26 @@ const handleSavePoll = async () => {
                               <Badge
                                 key={tag}
                                 variant="default"
-                                className="text-xs bg-accent/10 text-accent border-accent/20"
+                                className="border-accent/20 bg-accent/10 text-accent text-xs"
                               >
                                 {tag}
                               </Badge>
                             ))}
-                            {status === "active" && (
-                              <Badge className="text-xs bg-green-100 text-green-800 border-green-200">
-                                <HourglassIcon className="w-3 h-3 mr-1" />
+                            {status === 'active' && (
+                              <Badge className="border-green-200 bg-green-100 text-green-700 text-xs">
+                                <HourglassIcon className="mr-1 h-3 w-3" />
                                 Active
                               </Badge>
                             )}
-                            {status === "upcoming" && (
-                              <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
-                                <Calendar className="w-3 h-3 mr-1" />
+                            {status === 'upcoming' && (
+                              <Badge variant="outline" className="border-blue-200 text-blue-700 text-xs">
+                                <Calendar className="mr-1 h-3 w-3" />
                                 Upcoming
                               </Badge>
                             )}
-                            {status === "expired" && (
+                            {status === 'expired' && (
                               <Badge variant="destructive" className="text-xs">
-                                <HourglassIcon className="w-3 h-3 mr-1" />
+                                <HourglassIcon className="mr-1 h-3 w-3" />
                                 Expired
                               </Badge>
                             )}
@@ -643,40 +699,49 @@ const handleSavePoll = async () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewExtractedText(poll)}
-                            className="flex-shrink-0 ml-2 hover:bg-accent/10 hover:text-accent"
+                            className="ml-2 flex-shrink-0 hover:bg-accent/10 hover:text-accent"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
-                      <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="space-y-2 text-sm text-foreground">
                         <p className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-accent" />
-                          <span className="font-medium">Start:</span> {new Date(poll.start_at || "").toLocaleString()}
+                          <Clock className="h-4 w-4 text-foreground" />
+                          <span className="font-medium">Start:</span>{' '}
+                          {new Date(poll.start_at || '').toLocaleString()}
                         </p>
                         <p className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-accent" />
-                          <span className="font-medium">End:</span> {new Date(poll.end_at || "").toLocaleString()}
+                          <Clock className="h-4 w-4 text-foreground" />
+                          <span className="font-medium">End:</span>{' '}
+                          {new Date(poll.end_at || '').toLocaleString()}
                         </p>
-                        {status === "active" && (
-                          <p className="text-xs font-semibold text-accent flex items-center gap-2">
-                            <HourglassIcon className="w-3 h-3" />
-                            Expires {formatDistanceToNow(new Date(poll.end_at || ""), { addSuffix: true })}
+                        {status === 'active' && (
+                          <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                            <HourglassIcon className="h-3 w-3" />
+                            Expires{' '}
+                            {formatDistanceToNow(new Date(poll.end_at || ''), {
+                              addSuffix: true,
+                            })}
                           </p>
                         )}
                       </div>
                     </CardHeader>
 
-                    <CardContent className="flex-1 flex flex-col justify-between">
-                      <div className="space-y-3 mb-4">
-                        {[poll.option1, poll.option2, poll.option3, poll.option4].map((option, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center p-3 bg-muted/30 rounded-lg border border-border/50 hover:border-accent/30 transition-colors"
-                          >
-                            <span className="text-sm font-medium truncate">{option}</span>
-                          </div>
-                        ))}
+                    <CardContent className="flex flex-1 flex-col justify-between">
+                      <div className="mb-4 space-y-3">
+                        {[poll.option1, poll.option2, poll.option3, poll.option4].map(
+                          (option, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center rounded-lg border border-border/50 bg-muted/30 p-3 transition-colors hover:border-accent/30"
+                            >
+                              <span className="truncate text-sm font-medium text-foreground">
+                                {option}
+                              </span>
+                            </div>
+                          ),
+                        )}
                       </div>
 
                       <Separator className="my-4" />
@@ -688,26 +753,26 @@ const handleSavePoll = async () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDirectDownload(poll.file_url!)}
-                              className="hover:bg-accent/10 hover:text-accent"
+                              className="hover:bg-accent/10 hover:text-foreground"
                             >
-                              <Download className="w-4 h-4" />
+                              <Download className="h-4 w-4" />
                             </Button>
                           )}
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleShowResults(poll)}
-                            className="hover:bg-accent/10 hover:text-accent"
+                            className="hover:bg-accent/10 hover:text-foreground"
                           >
-                            <TrendingUp className="w-4 h-4" />
+                            <TrendingUp className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleShowComments(poll)}
-                            className="hover:bg-accent/10 hover:text-accent"
+                            className="hover:bg-accent/10 hover:text-foreground"
                           >
-                            <MessageCircle className="w-4 h-4" />
+                            <MessageCircle className="h-4 w-4" />
                           </Button>
                         </div>
 
@@ -716,17 +781,17 @@ const handleSavePoll = async () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditPoll(poll)}
-                            className="hover:bg-blue-50 hover:text-blue-600"
+                            className=" hover:text-foreground"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => confirmDeletePoll(poll.id, poll.file_url)}
-                            className="hover:bg-red-50 hover:text-red-600"
+                            className="hover:bg-red-50 hover:text-foreground"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
@@ -738,12 +803,15 @@ const handleSavePoll = async () => {
           ) : (
             <Card className="border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-card to-muted/10">
               <CardContent className="flex flex-col items-center justify-center py-20">
-                <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mb-6">
-                  <BarChartIcon className="w-10 h-10 text-accent" />
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-accent/10">
+                  <BarChartIcon className="h-10 w-10 text-foreground" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3 text-foreground">No polls yet</h3>
-                <p className="text-muted-foreground text-center max-w-md text-balance">
-                  Get started by creating your first poll using the Create Poll button above.
+                <h3 className="mb-3 text-2xl font-bold text-foreground">
+                  No polls yet
+                </h3>
+                <p className="max-w-md text-balance text-center text-muted-foreground">
+                  Get started by creating your first poll using the Create Poll
+                  button above.
                 </p>
               </CardContent>
             </Card>
@@ -755,19 +823,24 @@ const handleSavePoll = async () => {
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden">
           <DialogHeader className="p-6">
-            <DialogTitle className="text-2xl font-bold">{modalTitle}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">
+              {modalTitle}
+            </DialogTitle>
             <DialogDescription>Document content preview</DialogDescription>
           </DialogHeader>
           {isModalContentLoading ? (
-            <div className="flex justify-center items-center h-[50vh]">
+            <div className="flex h-[50vh] items-center justify-center">
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                 <p className="text-muted-foreground">Loading document...</p>
               </div>
             </div>
           ) : (
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
-              <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: modalContent }} />
+            <div className="max-h-[calc(90vh-100px)] overflow-y-auto p-6">
+              <div
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: modalContent }}
+              />
             </div>
           )}
         </DialogContent>
@@ -778,15 +851,19 @@ const handleSavePoll = async () => {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader className="space-y-3">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <DialogTitle className="text-xl font-bold">Poll Results</DialogTitle>
+              <TrendingUp className="h-5 w-5" />
+              <DialogTitle className="text-xl font-bold">
+                Poll Results
+              </DialogTitle>
             </div>
-            <DialogDescription className="font-semibold">{selectedPoll?.question}</DialogDescription>
+            <DialogDescription className="font-semibold">
+              {selectedPoll?.question}
+            </DialogDescription>
           </DialogHeader>
           <PollResultsGraph
             pollResults={pollResults}
             isLoading={isResultsLoading}
-            pollQuestion={selectedPoll?.question || ""}
+            pollQuestion={selectedPoll?.question || ''}
           />
         </DialogContent>
       </Dialog>
@@ -797,7 +874,9 @@ const handleSavePoll = async () => {
           <DialogHeader>
             <DialogTitle className="text-2xl">Comments</DialogTitle>
           </DialogHeader>
-          <div className="py-4">{selectedPoll && <PollComments pollId={selectedPoll.id} />}</div>
+          <div className="py-4">
+            {selectedPoll && <PollComments pollId={selectedPoll.id} />}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -806,18 +885,19 @@ const handleSavePoll = async () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="space-y-3">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-destructive" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
               </div>
               <div>
                 <DialogTitle>Delete Poll</DialogTitle>
                 <DialogDescription>
-                  This action cannot be undone. This will permanently delete the poll and all its responses.
+                  This action cannot be undone. This will permanently delete the
+                  poll and all its responses.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="mt-6 flex justify-end space-x-3">
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
               Cancel
             </Button>
@@ -831,7 +911,7 @@ const handleSavePoll = async () => {
               }}
               variant="destructive"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="mr-2 h-4 w-4" />
               Delete Poll
             </Button>
           </div>
@@ -840,13 +920,15 @@ const handleSavePoll = async () => {
 
       <Dialog open={createPollModalOpen} onOpenChange={setCreatePollModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border-2">
-          <DialogHeader className="space-y-4 pb-6">
+          <DialogHeader className="pb-6 space-y-4">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center">
-                <PlusCircle className="w-6 h-6 text-accent" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+                <PlusCircle className="h-6 w-6 text-accent" />
               </div>
               <div>
-                <DialogTitle className="text-2xl font-bold text-foreground">Create New Poll</DialogTitle>
+                <DialogTitle className="text-2xl font-bold text-foreground">
+                  Create New Poll
+                </DialogTitle>
                 <DialogDescription className="text-muted-foreground">
                   Fill out the details to create a new poll
                 </DialogDescription>
@@ -854,7 +936,7 @@ const handleSavePoll = async () => {
             </div>
           </DialogHeader>
 
-          <div className="space-y-6 py-2">
+          <div className="py-2 space-y-6">
             <div className="space-y-3">
               <Label htmlFor="question" className="text-base font-semibold text-foreground">
                 Poll Question
@@ -869,17 +951,21 @@ const handleSavePoll = async () => {
                     setQuestion(e.target.value)
                   }
                 }}
-                className="bg-card border-2 focus:border-accent transition-colors"
+                className="border-2 bg-card focus:border-accent transition-colors"
               />
-              <p className="text-sm flex justify-between text-muted-foreground">
+              <p className="flex justify-between text-sm text-muted-foreground">
                 <span>Enter your poll question</span>
-                <span className={question.length > 40 ? "text-amber-600" : ""}>{question.length}/50 characters</span>
+                <span className={question.length > 40 ? 'text-amber-600' : ''}>
+                  {question.length}/50 characters
+                </span>
               </p>
             </div>
 
             <div className="space-y-4">
-              <Label className="text-base font-semibold text-foreground">Answer Options</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Label className="text-base font-semibold text-foreground">
+                Answer Options
+              </Label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {options.map((opt, idx) => (
                   <div key={idx} className="space-y-2">
                     <Input
@@ -893,10 +979,12 @@ const handleSavePoll = async () => {
                           setOptions(newOpts)
                         }
                       }}
-                      className="bg-card border-2 focus:border-accent transition-colors"
+                      className="border-2 bg-card focus:border-accent transition-colors"
                     />
-                    <p className="text-xs flex justify-end text-muted-foreground">
-                      <span className={opt.length > 8 ? "text-amber-600" : ""}>{opt.length}/10 characters</span>
+                    <p className="flex justify-end text-xs text-muted-foreground">
+                      <span className={opt.length > 8 ? 'text-amber-600' : ''}>
+                        {opt.length}/10 characters
+                      </span>
                     </p>
                   </div>
                 ))}
@@ -909,18 +997,22 @@ const handleSavePoll = async () => {
               </Label>
               <Select
                 value={pollType}
-                onValueChange={(value) => setPollType(value as "single" | "multiple" | "ranked")}
+                onValueChange={(value) =>
+                  setPollType(value as 'single' | 'multiple' | 'ranked')
+                }
               >
-                <SelectTrigger id="poll_type" className="bg-card border-2 focus:border-accent transition-colors">
+                <SelectTrigger id="poll_type" className="border-2 bg-card focus:border-accent transition-colors">
                   <SelectValue placeholder="Select poll type" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-2">
+                <SelectContent className="border-2 bg-card">
                   <SelectItem value="single">Single Choice</SelectItem>
                   <SelectItem value="multiple">Multiple Choice</SelectItem>
                   <SelectItem value="ranked">Ranked Choice</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">Choose if users can select one or multiple options.</p>
+              <p className="text-sm text-muted-foreground">
+                Choose if users can select one or multiple options.
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -928,10 +1020,10 @@ const handleSavePoll = async () => {
                 Category
               </Label>
               <Select value={tags} onValueChange={setTags}>
-                <SelectTrigger id="category" className="bg-card border-2 focus:border-accent transition-colors">
+                <SelectTrigger id="category" className="border-2 bg-card focus:border-accent transition-colors">
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-2">
+                <SelectContent className="border-2 bg-card">
                   <SelectItem value="all">All Categories</SelectItem>
                   {pollCategories.map((category) => (
                     <SelectItem key={category.value} value={category.value}>
@@ -940,13 +1032,19 @@ const handleSavePoll = async () => {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">Select a predefined category for your poll.</p>
+              <p className="text-sm text-muted-foreground">
+                Select a predefined category for your poll.
+              </p>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-base font-semibold text-foreground">Poll Schedule</Label>
-              <p className="text-sm text-muted-foreground">Set the start and end dates/times for the poll.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Label className="text-base font-semibold text-foreground">
+                Poll Schedule
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Set the start and end dates/times for the poll.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="start_time" className="text-foreground">
                     Start Time
@@ -956,7 +1054,7 @@ const handleSavePoll = async () => {
                     type="datetime-local"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="bg-card border-2 focus:border-accent transition-colors"
+                    className="border-2 bg-card focus:border-accent transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
@@ -968,7 +1066,7 @@ const handleSavePoll = async () => {
                     type="datetime-local"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="bg-card border-2 focus:border-accent transition-colors"
+                    className="border-2 bg-card focus:border-accent transition-colors"
                   />
                 </div>
               </div>
@@ -983,44 +1081,47 @@ const handleSavePoll = async () => {
                   id="file"
                   type="file"
                   onChange={handleFileChange}
-                  className="bg-card border-2 focus:border-accent transition-colors"
+                  className="border-2 bg-card focus:border-accent transition-colors"
                 />
                 {file && (
-                  <div className="mt-3 p-3 rounded-lg border border-border/50 bg-muted/20">
-                    <p className="text-sm flex items-center">
-                      <FileText className="w-4 h-4 mr-2" />
+                  <div className="mt-3 rounded-lg border border-border/50 bg-muted/20 p-3">
+                    <p className="flex items-center text-sm text-foreground">
+                      <FileText className="mr-2 h-4 w-4" />
                       <span className="font-medium">{file.name}</span>
-                      <span className="ml-2 text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                      <span className="ml-2 text-muted-foreground">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
                     </p>
                   </div>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                Upload a document to support your poll (optional, 10 KB - 5000 KB).
+                Upload a document to support your poll (optional, 10 KB - 5000
+                KB).
               </p>
             </div>
 
             <Separator className="my-6" />
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <Button
                 onClick={handleSavePoll}
                 disabled={loading}
-                className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
+                className="flex-1 bg-accent text-accent-foreground shadow-lg hover:bg-accent/90"
               >
                 {loading ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                     <span>Saving...</span>
                   </>
                 ) : editingId ? (
                   <>
-                    <Pencil className="h-4 w-4 mr-2" />
+                    <Pencil className="mr-2 h-4 w-4" />
                     <span>Update Poll</span>
                   </>
                 ) : (
                   <>
-                    <PlusCircle className="h-4 w-4 mr-2" />
+                    <PlusCircle className="mr-2 h-4 w-4" />
                     <span>Create Poll</span>
                   </>
                 )}
@@ -1028,7 +1129,7 @@ const handleSavePoll = async () => {
               <Button
                 variant="outline"
                 onClick={resetForm}
-                className="flex-1 border-2 hover:border-accent transition-colors bg-transparent"
+                className="flex-1 border-2 bg-transparent transition-colors hover:border-accent"
               >
                 Cancel
               </Button>

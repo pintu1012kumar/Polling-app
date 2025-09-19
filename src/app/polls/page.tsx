@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
@@ -239,50 +239,50 @@ export default function PollsPage() {
     setIsCommentsModalOpen(true)
   }
 
-const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
-  const optionsToSubmit = selectedOptions[pollId] || []
+  const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ranked") => {
+    const optionsToSubmit = selectedOptions[pollId] || []
 
-  if (optionsToSubmit.length === 0) {
-    toast.info("Please select at least one option!")
-    return
+    if (optionsToSubmit.length === 0) {
+      toast.info("Please select at least one option!")
+      return
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      router.push("/login")
+      return
+    }
+
+    // This is the crucial check that prevents the duplicate vote
+    if (votedPolls.has(pollId)) {
+      toast.info("You have already voted on this poll!")
+      return // Stop the function here to prevent the database call.
+    }
+
+    setIsSubmitting(true)
+
+    const votesToInsert = optionsToSubmit.map((option) => ({
+      poll_id: pollId,
+      user_id: session.user.id,
+      selected_option: option,
+    }))
+
+    const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
+
+    if (error) {
+      console.error(error)
+      toast.error("Failed to submit vote. Please try again.", { description: error.message })
+    } else {
+      toast.success("Vote submitted successfully!")
+      setVotedPolls((prev) => new Set(prev).add(pollId))
+      setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
+      setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
+    }
+
+    setIsSubmitting(false)
   }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) {
-    router.push("/login")
-    return
-  }
-
-  // This is the crucial check that prevents the duplicate vote
-  if (votedPolls.has(pollId)) {
-    toast.info("You have already voted on this poll!")
-    return // Stop the function here to prevent the database call.
-  }
-
-  setIsSubmitting(true)
-
-  const votesToInsert = optionsToSubmit.map((option) => ({
-    poll_id: pollId,
-    user_id: session.user.id,
-    selected_option: option,
-  }))
-
-  const { error } = await supabase.from("poll_selected_options").insert(votesToInsert)
-
-  if (error) {
-    console.error(error)
-    toast.error("Failed to submit vote. Please try again.", { description: error.message })
-  } else {
-    toast.success("Vote submitted successfully!")
-    setVotedPolls((prev) => new Set(prev).add(pollId))
-    setUserVotes((prev) => ({ ...prev, [pollId]: optionsToSubmit }))
-    setSelectedOptions((prev) => ({ ...prev, [pollId]: [] }))
-  }
-
-  setIsSubmitting(false)
-}
 
   const handleToggleOption = (pollId: string, option: string) => {
     setSelectedOptions((prev) => {
@@ -374,8 +374,8 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
           <div className="inline-flex items-center justify-center w-16 h-16 bg-accent/10 rounded-full mb-4">
             <Vote className="w-8 h-8 text-accent" />
           </div>
-          <h1 className="text-5xl font-extrabold tracking-tight text-black">Available Polls</h1>
-          <p className="text-xl text-black max-w-2xl mx-auto text-balance">
+          <h1 className="text-5xl font-extrabold tracking-tight text-foreground">Available Polls</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
             Cast your vote on the latest polls and make your voice heard
           </p>
         </div>
@@ -398,7 +398,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                   <SelectTrigger className="w-[220px] h-12 pl-12 bg-card border-2 focus:border-accent">
                     <SelectValue placeholder="Filter by category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card border-2">
                     <SelectItem value="all">All Categories</SelectItem>
                     {pollCategories.map((category) => (
                       <SelectItem key={category.value} value={category.value}>
@@ -412,7 +412,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                 <Button
                   variant="outline"
                   onClick={() => setSelectedCategory("all")}
-                  className="h-12 border-2 hover:border-accent transition-colors"
+                  className="h-12 border-2 hover:border-accent transition-colors bg-card"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Clear Filter
@@ -428,8 +428,8 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
               <div className="w-24 h-24 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Vote className="h-12 w-12 text-accent" />
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-black">No polls available</h3>
-              <p className="text-black text-lg max-w-md mx-auto text-balance">
+              <h3 className="text-2xl font-bold mb-3 text-foreground">No polls available</h3>
+              <p className="text-muted-foreground text-lg max-w-md mx-auto text-balance">
                 Check back later for new polls to vote on.
               </p>
             </CardContent>
@@ -451,22 +451,22 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                   value={poll.id}
                   className="border border-border rounded-lg bg-card shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline text-foreground">
                     <div className="flex items-center justify-between w-full text-left">
                       <div className="flex-1 pr-4">
-                        <h3 className="text-lg font-bold text-black text-balance">{poll.question}</h3>
+                        <h3 className="text-lg font-bold text-foreground text-balance">{poll.question}</h3>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {status === "upcoming" && (
                             <Badge
                               variant="outline"
-                              className="flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 text-xs"
+                              className="flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 text-xs dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-800"
                             >
                               <Calendar className="w-3 h-3" />
                               Upcoming
                             </Badge>
                           )}
                           {status === "active" && (
-                            <Badge className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs">
+                            <Badge className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs dark:bg-green-900/50 dark:text-green-200 dark:border-green-800">
                               <HourglassIcon className="w-3 h-3" />
                               Active
                             </Badge>
@@ -481,7 +481,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                             {isMultiple ? "Multiple" : "Single"}
                           </Badge>
                           {hasVoted && (
-                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs dark:bg-green-900/50 dark:text-green-200 dark:border-green-800">
                               <CheckCheck className="w-3 h-3 mr-1" />
                               Voted
                             </Badge>
@@ -493,10 +493,10 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
 
                   <AccordionContent className="px-6 pb-6">
                     <div className="space-y-4">
-                      <Separator />
+                      <Separator className="bg-border" />
 
                       {/* Poll timing information */}
-                      <div className="space-y-2 text-sm text-black bg-muted/20 p-4 rounded-lg">
+                      <div className="space-y-2 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg">
                         <p className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-accent" />
                           <span className="font-medium">Start:</span>{" "}
@@ -511,7 +511,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
 
                       {/* Poll options */}
                       <div className="space-y-3">
-                        <h4 className="font-semibold text-black">Options:</h4>
+                        <h4 className="font-semibold text-foreground">Options:</h4>
                         {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
                           const isVotedOption = hasVoted && votedOptions.includes(opt)
                           const isSelected = selectedThisSession.includes(opt)
@@ -539,7 +539,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                               />
                               <Label
                                 htmlFor={`${poll.id}-option-${idx}`}
-                                className="flex-1 cursor-pointer font-medium text-black"
+                                className="flex-1 cursor-pointer font-medium text-foreground"
                               >
                                 {opt}
                               </Label>
@@ -558,7 +558,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleViewFile(poll)}
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 bg-card hover:bg-muted"
                               >
                                 <Eye className="h-4 w-4" />
                                 View File
@@ -567,7 +567,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleDirectDownload(poll.file_url!)}
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-2 bg-card hover:bg-muted"
                               >
                                 <Download className="h-4 w-4" />
                                 Download
@@ -578,7 +578,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                             variant="outline"
                             size="sm"
                             onClick={() => handleShowResults(poll)}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 bg-card hover:bg-muted"
                           >
                             <TrendingUp className="h-4 w-4" />
                             View Results
@@ -587,7 +587,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
                             variant="outline"
                             size="sm"
                             onClick={() => handleShowComments(poll)}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 bg-card hover:bg-muted"
                           >
                             <MessageCircle className="h-4 w-4" />
                             Comments
@@ -624,7 +624,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
 
         {/* Modals */}
         <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl bg-card text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl">Poll Results</DialogTitle>
             </DialogHeader>
@@ -639,7 +639,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
         </Dialog>
 
         <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl bg-card text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl">Comments</DialogTitle>
             </DialogHeader>
@@ -649,7 +649,7 @@ const handleVote = async (pollId: string, pollType: "single" | "multiple" | "ran
 
         {/* File Modal */}
         <Dialog open={showFileModal} onOpenChange={setShowFileModal}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden bg-card text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl">{fileModalTitle}</DialogTitle>
             </DialogHeader>

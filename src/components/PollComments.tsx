@@ -44,7 +44,7 @@ interface Comment {
   created_at: string
   is_flagged: boolean
   is_deleted: boolean
-  author_username: string
+  author_email: string
 }
 
 interface CommentTree extends Comment {
@@ -53,6 +53,38 @@ interface CommentTree extends Comment {
 
 interface PollCommentsProps {
   pollId: string
+}
+
+interface CommentItemProps {
+  comment: CommentTree
+  currentUserId: string | null
+  replyingTo: string | null
+  newCommentContent: string
+  setNewCommentContent: (content: string) => void
+  onReply: (id: string) => void
+  onCancelReply: () => void
+  onPostReply: () => void
+  onVote: (id: string, type: "up" | "down") => void
+  onDelete: (id: string) => void
+  onFlag: (id: string) => void
+  expandedComments: Set<string>
+  onToggleReplies: (id: string) => void
+  isPostingReply: boolean
+}
+
+// Define the type for the data returned from the query
+interface CommentDataFromSupabase {
+  id: string
+  content: string
+  user_id: string
+  poll_id: string
+  parent_id: string | null
+  upvotes: number
+  downvotes: number
+  created_at: string
+  is_flagged: boolean
+  is_deleted: boolean
+  users: { email: string | null } | null
 }
 
 const buildCommentTree = (comments: Comment[]): CommentTree[] => {
@@ -89,12 +121,12 @@ const CommentItem = ({
   expandedComments,
   onToggleReplies,
   isPostingReply,
-}: any) => {
+}: CommentItemProps) => {
   const isExpanded = expandedComments.has(comment.id);
   const isReplyingHere = replyingTo === comment.id;
 
-  // Add a safe check for the author_username
-  const authorUsername = comment.author_username || 'Guest User';
+  const authorEmail = comment.author_email || 'guest@example.com';
+  const authorUsername = authorEmail.split('@')[0];
   const authorInitials = authorUsername.slice(0, 2).toUpperCase();
 
   return (
@@ -106,7 +138,7 @@ const CommentItem = ({
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-            <span className="font-semibold text-sm text-foreground truncate">{authorUsername}</span>
+            <span className="font-semibold text-sm text-foreground truncate">{authorEmail}</span>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             </span>
@@ -183,7 +215,7 @@ const CommentItem = ({
           {isReplyingHere && (
             <div className="mt-4 space-y-2">
               <Textarea
-                placeholder={`Replying to ${authorUsername}...`}
+                placeholder={`Replying to ${authorEmail}...`}
                 value={newCommentContent}
                 onChange={(e) => setNewCommentContent(e.target.value)}
                 className="bg-muted"
@@ -202,7 +234,7 @@ const CommentItem = ({
 
           {isExpanded && comment.children.length > 0 && (
             <div className="ml-4 mt-4 border-l-2 border-border pl-4">
-              {comment.children.map((child: any) => (
+              {comment.children.map((child: CommentTree) => (
                 <CommentItem
                   key={child.id}
                   comment={child}
@@ -228,6 +260,7 @@ const CommentItem = ({
     </div>
   );
 };
+
 export default function PollComments({ pollId }: PollCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>([])
   const [newCommentContent, setNewCommentContent] = useState("")
@@ -236,15 +269,16 @@ export default function PollComments({ pollId }: PollCommentsProps) {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
-const fetchComments = useCallback(async () => {
+
+  const fetchComments = useCallback(async () => {
     setIsLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     setCurrentUserId(session?.user.id || null)
 
-    // The query is simplified, PostgREST can now find the relationship
     const { data, error } = await supabase
       .from("poll_comments")
-      .select("*, users(name)") 
+      // Corrected syntax to join with the `users` table and select the `email`
+      .select("*, users(email)") 
       .eq("poll_id", pollId)
       .order("created_at", { ascending: false })
 
@@ -255,14 +289,14 @@ const fetchComments = useCallback(async () => {
       return
     }
 
-    const mapped: Comment[] = data.map((c: any) => ({
+    const mapped: Comment[] = (data as unknown as CommentDataFromSupabase[]).map(c => ({
       ...c,
-      author_username: c.users.name,
-    }))
+      author_email: c.users?.email || 'guest@example.com',
+    }));
 
     setComments(buildCommentTree(mapped))
     setIsLoading(false)
-}, [pollId])
+  }, [pollId])
 
   useEffect(() => {
     fetchComments()
