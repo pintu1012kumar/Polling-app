@@ -15,6 +15,7 @@ import { Bell, BellRing, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
+import { RealtimePostgresInsertPayload } from '@supabase/supabase-js'
 
 interface Notification {
   id: string
@@ -66,7 +67,7 @@ export default function Notifications() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications' },
-        (payload: any) => {
+        (payload: RealtimePostgresInsertPayload<Notification>) => {
           const newNotif = payload.new as Notification;
           // Check for user ID in real-time updates as RLS is off
           supabase.auth.getUser().then(({ data: { user } }) => {
