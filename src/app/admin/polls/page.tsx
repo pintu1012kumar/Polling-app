@@ -659,35 +659,30 @@ const handleSavePoll = async () => {
                               <Calendar className="mr-1 h-3 w-3 text-foreground" />
                               {new Date(poll.created_at).toLocaleDateString()}
                             </Badge>
-                            {poll.file_url && (
-                              <Badge variant="outline" className="text-xs border-accent/50">
-                                <FileText className="mr-1 h-3 w-3" />
-                                Document
-                              </Badge>
-                            )}
+            
                             {(poll.tags || []).map((tag) => (
                               <Badge
                                 key={tag}
-                                variant="default"
-                                className="border-accent/20 bg-accent/10 text-accent text-xs"
+                                
+                                className=" text-xs"
                               >
                                 {tag}
                               </Badge>
                             ))}
                             {status === 'active' && (
-                              <Badge className="border-green-200 bg-green-100 text-green-700 text-xs">
+                              <Badge className="  text-xs">
                                 <HourglassIcon className="mr-1 h-3 w-3" />
                                 Active
                               </Badge>
                             )}
                             {status === 'upcoming' && (
-                              <Badge variant="outline" className="border-blue-200 text-blue-700 text-xs">
+                              <Badge variant="outline" className=" text-xs">
                                 <Calendar className="mr-1 h-3 w-3" />
                                 Upcoming
                               </Badge>
                             )}
                             {status === 'expired' && (
-                              <Badge variant="destructive" className="text-xs">
+                              <Badge  className="text-xs">
                                 <HourglassIcon className="mr-1 h-3 w-3" />
                                 Expired
                               </Badge>
@@ -699,7 +694,7 @@ const handleSavePoll = async () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleViewExtractedText(poll)}
-                            className="ml-2 flex-shrink-0 hover:bg-accent/10 hover:text-accent"
+                            className="ml-2 flex-shrink-0 "
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -885,8 +880,8 @@ const handleSavePoll = async () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="space-y-3">
             <div className="flex items-center space-x-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
-                <Trash2 className="h-5 w-5 text-destructive" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full ">
+                <Trash2 className="h-5 w-5" />
               </div>
               <div>
                 <DialogTitle>Delete Poll</DialogTitle>
@@ -909,7 +904,6 @@ const handleSavePoll = async () => {
                   setShowDeleteConfirm(false)
                 }
               }}
-              variant="destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Poll
@@ -1007,7 +1001,6 @@ const handleSavePoll = async () => {
                 <SelectContent className="border-2 bg-card">
                   <SelectItem value="single">Single Choice</SelectItem>
                   <SelectItem value="multiple">Multiple Choice</SelectItem>
-                  <SelectItem value="ranked">Ranked Choice</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">

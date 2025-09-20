@@ -459,29 +459,29 @@ export default function PollsPage() {
                           {status === "upcoming" && (
                             <Badge
                               variant="outline"
-                              className="flex items-center gap-1 border-blue-200 text-blue-700 bg-blue-50 text-xs dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-800"
+                              className="flex items-center gap-1 "
                             >
                               <Calendar className="w-3 h-3" />
                               Upcoming
                             </Badge>
                           )}
                           {status === "active" && (
-                            <Badge className="flex items-center gap-1 bg-green-100 text-green-800 border-green-200 text-xs dark:bg-green-900/50 dark:text-green-200 dark:border-green-800">
+                            <Badge className="flex items-center gap-1 ">
                               <HourglassIcon className="w-3 h-3" />
                               Active
                             </Badge>
                           )}
                           {status === "expired" && (
-                            <Badge variant="destructive" className="flex items-center gap-1 text-xs">
+                            <Badge className="flex items-center gap-1 text-xs">
                               <HourglassIcon className="w-3 h-3" />
                               Expired
                             </Badge>
                           )}
-                          <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20 text-xs">
+                          <Badge variant="secondary" className=" text-xs">
                             {isMultiple ? "Multiple" : "Single"}
                           </Badge>
                           {hasVoted && (
-                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs dark:bg-green-900/50 dark:text-green-200 dark:border-green-800">
+                            <Badge className="bg-white text-black border-green-200 text-xs dark:bg-black dark:text-white ">
                               <CheckCheck className="w-3 h-3 mr-1" />
                               Voted
                             </Badge>

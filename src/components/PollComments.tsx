@@ -38,13 +38,13 @@ interface Comment {
   content: string
   user_id: string
   poll_id: string
-  parent_id: string | null
+  parent_comment_id: string | null
   upvotes: number
   downvotes: number
   created_at: string
   is_flagged: boolean
   is_deleted: boolean
-  author_email: string
+  author_username: string
 }
 
 interface CommentTree extends Comment {
@@ -78,13 +78,13 @@ interface CommentDataFromSupabase {
   content: string
   user_id: string
   poll_id: string
-  parent_id: string | null
+  parent_comment_id: string | null
   upvotes: number
   downvotes: number
   created_at: string
   is_flagged: boolean
   is_deleted: boolean
-  users: { email: string | null } | null
+  profiles: { username: string | null } | null
 }
 
 const buildCommentTree = (comments: Comment[]): CommentTree[] => {
@@ -96,8 +96,8 @@ const buildCommentTree = (comments: Comment[]): CommentTree[] => {
   })
 
   comments.forEach(c => {
-    if (c.parent_id && map[c.parent_id]) {
-      map[c.parent_id].children.push(map[c.id])
+    if (c.parent_comment_id && map[c.parent_comment_id]) {
+      map[c.parent_comment_id].children.push(map[c.id])
     } else {
       tree.push(map[c.id])
     }
@@ -125,8 +125,7 @@ const CommentItem = ({
   const isExpanded = expandedComments.has(comment.id);
   const isReplyingHere = replyingTo === comment.id;
 
-  const authorEmail = comment.author_email || 'guest@example.com';
-  const authorUsername = authorEmail.split('@')[0];
+  const authorUsername = comment.author_username || 'Guest';
   const authorInitials = authorUsername.slice(0, 2).toUpperCase();
 
   return (
@@ -138,7 +137,7 @@ const CommentItem = ({
         </Avatar>
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-            <span className="font-semibold text-sm text-foreground truncate">{authorEmail}</span>
+            <span className="font-semibold text-sm text-foreground truncate">{authorUsername}</span>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             </span>
@@ -154,26 +153,34 @@ const CommentItem = ({
           <div className="flex items-center gap-2 text-muted-foreground text-xs flex-wrap">
             <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
               onClick={() => onVote(comment.id, "up")}>
-              <ArrowBigUp className="w-4 h-4 mr-1" /> {comment.upvotes}
+              <span className="flex items-center gap-1">
+                <ArrowBigUp className="w-4 h-4" /> {comment.upvotes}
+              </span>
             </Button>
             <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
               onClick={() => onVote(comment.id, "down")}>
-              <ArrowBigDown className="w-4 h-4 mr-1" /> {comment.downvotes}
+              <span className="flex items-center gap-1">
+                <ArrowBigDown className="w-4 h-4" /> {comment.downvotes}
+              </span>
             </Button>
 
             {!comment.is_deleted && (
               <>
                 <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
                   onClick={() => onReply(comment.id)}>
-                  <Reply className="w-4 h-4 mr-1" /> Reply
+                  <span className="flex items-center gap-1">
+                    <Reply className="w-4 h-4" /> Reply
+                  </span>
                 </Button>
 
                 {comment.children.length > 0 && (
                   <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
                     onClick={() => onToggleReplies(comment.id)}>
-                    <ChevronDown className={`w-4 h-4 mr-1 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                    {isExpanded ? "Hide" : "View"} {comment.children.length}{" "}
-                    {comment.children.length === 1 ? "reply" : "replies"}
+                    <span className="flex items-center gap-1">
+                      <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      {isExpanded ? "Hide" : "View"} {comment.children.length}{" "}
+                      {comment.children.length === 1 ? "reply" : "replies"}
+                    </span>
                   </Button>
                 )}
 
@@ -181,7 +188,9 @@ const CommentItem = ({
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-red-500 hover:text-red-600 transition-colors">
-                        <Trash2 className="w-4 h-4 mr-1" /> Delete
+                        <span className="flex items-center gap-1">
+                          <Trash2 className="w-4 h-4" /> Delete
+                        </span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -205,7 +214,9 @@ const CommentItem = ({
                 {currentUserId !== comment.user_id && (
                   <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-yellow-500 hover:text-yellow-600 transition-colors"
                     onClick={() => onFlag(comment.id)}>
-                    <Flag className="w-4 h-4 mr-1" /> Flag
+                    <span className="flex items-center gap-1">
+                      <Flag className="w-4 h-4" /> Flag
+                    </span>
                   </Button>
                 )}
               </>
@@ -215,7 +226,7 @@ const CommentItem = ({
           {isReplyingHere && (
             <div className="mt-4 space-y-2">
               <Textarea
-                placeholder={`Replying to ${authorEmail}...`}
+                placeholder={`Replying to ${authorUsername}...`}
                 value={newCommentContent}
                 onChange={(e) => setNewCommentContent(e.target.value)}
                 className="bg-muted"
@@ -225,8 +236,17 @@ const CommentItem = ({
                   Cancel
                 </Button>
                 <Button size="sm" onClick={onPostReply} disabled={isPostingReply} className="flex items-center gap-2">
-                  {isPostingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  {isPostingReply ? "Posting..." : "Reply"}
+                  {isPostingReply ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Posting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Reply</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -277,8 +297,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
 
     const { data, error } = await supabase
       .from("poll_comments")
-      // Corrected syntax to join with the `users` table and select the `email`
-      .select("*, users(email)") 
+      .select("*, profiles(username)")
       .eq("poll_id", pollId)
       .order("created_at", { ascending: false })
 
@@ -291,7 +310,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
 
     const mapped: Comment[] = (data as unknown as CommentDataFromSupabase[]).map(c => ({
       ...c,
-      author_email: c.users?.email || 'guest@example.com',
+      author_username: c.profiles?.username || 'Guest',
     }));
 
     setComments(buildCommentTree(mapped))
@@ -320,7 +339,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       user_id: session.user.id,
       poll_id: pollId,
       content: newCommentContent,
-      parent_id: replyingTo,
+      parent_comment_id: replyingTo,
     }
 
     const { error } = await supabase.from("poll_comments").insert(newComment)
