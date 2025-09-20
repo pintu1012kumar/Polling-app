@@ -279,95 +279,95 @@ export default function AdminPollsPage() {
     }
   }
 
-  const handleSavePoll = async () => {
-    if (!question.trim() || options.some((opt) => !opt.trim())) {
-      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
-      return
-    }
+const handleSavePoll = async () => {
+    if (!question.trim() || options.some((opt) => !opt.trim())) {
+      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
+      return
+    }
 
-    if (!startTime || !endTime) {
-      showAlert('Validation Error', 'Please set both start and end times.', 'destructive')
-      return
-    }
+    if (!startTime || !endTime) {
+      showAlert('Validation Error', 'Please set both start and end times.', 'destructive')
+      return
+    }
 
-    const startDate = new Date(startTime)
-    const endDate = new Date(endTime)
+    const startDate = new Date(startTime)
+    const endDate = new Date(endTime)
 
-    if (endDate <= startDate) {
-      showAlert('Validation Error', 'End time must be after start time.', 'destructive')
-      return
-    }
+    if (endDate <= startDate) {
+      showAlert('Validation Error', 'End time must be after start time.', 'destructive')
+      return
+    }
 
-    setLoading(true)
-    let fileUrl: string | null = null
-    let fileType: string | null = null
-    if (file) {
-      try {
-        const ext = file.name.split('.').pop()
-        const uniqueName = `${crypto.randomUUID()}.${ext}`
-        const filePath = `polls/${uniqueName}`
-        const { error: uploadError } = await supabase.storage.from('poll-files').upload(filePath, file)
-        if (uploadError) throw uploadError
-        const { data } = supabase.storage.from('poll-files').getPublicUrl(filePath)
-        fileUrl = data.publicUrl
-        fileType = file.type
-      } catch (err) {
-        const error = err as PostgrestError
-        console.error('File upload failed:', error.message)
-        showAlert('Error', 'File upload failed. Please try again.', 'destructive')
-        setLoading(false)
-        return
-      }
-    }
+    setLoading(true)
+    let fileUrl: string | null = null
+    let fileType: string | null = null
+    if (file) {
+      try {
+        const ext = file.name.split('.').pop()
+        const uniqueName = `${crypto.randomUUID()}.${ext}`
+        const filePath = `polls/${uniqueName}`
+        const { error: uploadError } = await supabase.storage.from('poll-files').upload(filePath, file)
+        if (uploadError) throw uploadError
+        const { data } = supabase.storage.from('poll-files').getPublicUrl(filePath)
+        fileUrl = data.publicUrl
+        fileType = file.type
+      } catch (err) {
+        const error = err as PostgrestError
+        console.error('File upload failed:', error.message)
+        showAlert('Error', 'File upload failed. Please try again.', 'destructive')
+        setLoading(false)
+        return
+      }
+    }
 
-    const tagsArray = tags ? [tags] : []
+    const tagsArray = tags ? [tags] : []
 
-    const pollData = {
-      question,
-      option1: options[0],
-      option2: options[1],
-      option3: options[2],
-      option4: options[3],
-      poll_type: pollType,
-      file_url: fileUrl,
-      file_type: fileType,
-      start_at: startTime,
-      end_at: endTime,
-      tags: tagsArray,
-    }
+    const pollData = {
+      question,
+      option1: options[0],
+      option2: options[1],
+      option3: options[2],
+      option4: options[3],
+      poll_type: pollType,
+      file_url: fileUrl,
+      file_type: fileType,
+      start_at: startTime,
+      end_at: endTime,
+      tags: tagsArray,
+      status: 'open', // <-- ADD THIS LINE
+    }
 
-    if (editingId) {
-      try {
-        // Delete the old poll first to 'replace' it
-        const { error: deleteError } = await supabase.from('polls').delete().eq('id', editingId)
-        if (deleteError) throw deleteError
+    if (editingId) {
+      try {
+        // Delete the old poll first to 'replace' it
+        const { error: deleteError } = await supabase.from('polls').delete().eq('id', editingId)
+        if (deleteError) throw deleteError
 
-        // Then create the new poll with the updated data
-        const { error: insertError } = await supabase.from('polls').insert([pollData])
-        if (insertError) throw insertError
+        // Then create the new poll with the updated data
+        const { error: insertError } = await supabase.from('polls').insert([pollData])
+        if (insertError) throw insertError
 
-        showAlert('Success', 'Poll updated successfully. (Old version deleted)', 'default')
-      } catch (err) {
-        const error = err as PostgrestError
-        console.error('Error during poll replacement:', error.message)
-        showAlert('Error', 'Failed to update poll.', 'destructive')
-      }
-    } else {
-      // Original logic for creating a new poll
-      const { error } = await supabase.from('polls').insert([pollData])
-      if (error) {
-        console.error('Error creating poll:', error.message)
-        showAlert('Error', 'Failed to create poll.', 'destructive')
-      } else {
-        showAlert('Success', 'Poll created successfully.', 'default')
-      }
-    }
+        showAlert('Success', 'Poll updated successfully. (Old version deleted)', 'default')
+      } catch (err) {
+        const error = err as PostgrestError
+        console.error('Error during poll replacement:', error.message)
+        showAlert('Error', 'Failed to update poll.', 'destructive')
+      }
+    } else {
+      // Original logic for creating a new poll
+      const { error } = await supabase.from('polls').insert([pollData])
+      if (error) {
+        console.error('Error creating poll:', error.message)
+        showAlert('Error', 'Failed to create poll.', 'destructive')
+      } else {
+        showAlert('Success', 'Poll created successfully.', 'default')
+      }
+    }
 
-    setLoading(false)
-    resetForm()
-    fetchPolls()
-  }
-
+    setLoading(false)
+    resetForm()
+    fetchPolls()
+  }
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
     try {
       if (fileUrl) {
