@@ -480,36 +480,7 @@ const handleSavePoll = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
-      <div className="sticky top-0 z-40 border-b bg-card/50 shadow-sm backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-foreground">
-                Poll Management
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Create and manage your polls
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                resetForm()
-                const now = new Date()
-                const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
-                setStartTime(now.toISOString().substring(0, 16))
-                setEndTime(defaultEnd.toISOString().substring(0, 16))
-                setCreatePollModalOpen(true)
-                setTimeout(() => document.getElementById('question')?.focus(), 100)
-              }}
-              className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
-              size="lg"
-            >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Create Poll
-            </Button>
-          </div>
-        </div>
-      </div>
+
 
       {alert.show && (
         <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-2">
@@ -559,8 +530,8 @@ const handleSavePoll = async () => {
         </div> */}
 
 <div className="mb-8">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    {/* Left Section: Search + Filter */}
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
+    {/* Right Section: Search + Filter + Button */}
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       {/* Search Input */}
       <div className="relative flex-1 max-w-md">
@@ -590,103 +561,97 @@ const handleSavePoll = async () => {
           </SelectContent>
         </Select>
       </div>
-    </div>
 
-    {/* Right Section: Create Poll Button */}
-    <Button
-      onClick={() => {
-        resetForm()
-        const now = new Date()
-        const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
-        setStartTime(now.toISOString().substring(0, 16))
-        setEndTime(defaultEnd.toISOString().substring(0, 16))
-        setCreatePollModalOpen(true)
-        setTimeout(() => document.getElementById("question")?.focus(), 100)
-      }}
-      className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
-      size="lg"
-    >
-      <PlusCircle className="mr-2 h-5 w-5" />
-      Create Poll
-    </Button>
+      {/* Create Poll Button */}
+      <Button
+        onClick={() => {
+          resetForm()
+          const now = new Date()
+          const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
+          setStartTime(now.toISOString().substring(0, 16))
+          setEndTime(defaultEnd.toISOString().substring(0, 16))
+          setCreatePollModalOpen(true)
+          setTimeout(() => document.getElementById("question")?.focus(), 100)
+        }}
+        className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
+        size="lg"
+      >
+        <PlusCircle className="mr-2 h-5 w-5" />
+        Create Poll
+      </Button>
+    </div>
   </div>
 </div>
 
 
 
 
+
         <div className="space-y-8">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-8">
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Polls
-                    </p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {polls.length}
-                    </p>
-                  </div>
-                  <BarChartIcon className="h-8 w-8 text-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Active Polls
-                    </p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {
-                        polls.filter((poll) => getPollStatus(poll) === 'active')
-                          .length
-                      }
-                    </p>
-                  </div>
-                  <Clock className="h-8 w-8 text-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Upcoming
-                    </p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {
-                        polls.filter((poll) => getPollStatus(poll) === 'upcoming')
-                          .length
-                      }
-                    </p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Expired
-                    </p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {
-                        polls.filter((poll) => getPollStatus(poll) === 'expired')
-                          .length
-                      }
-                    </p>
-                  </div>
-                  <HourglassIcon className="h-8 w-8 text-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+<div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-6">
+  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Total Polls
+          </p>
+          <p className="text-xl font-bold text-foreground">{polls.length}</p>
+        </div>
+        <BarChartIcon className="h-6 w-6 text-foreground" />
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Active Polls
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {polls.filter((poll) => getPollStatus(poll) === "active").length}
+          </p>
+        </div>
+        <Clock className="h-6 w-6 text-foreground" />
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Upcoming
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {polls.filter((poll) => getPollStatus(poll) === "upcoming").length}
+          </p>
+        </div>
+        <Calendar className="h-6 w-6 text-foreground" />
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Expired
+          </p>
+          <p className="text-xl font-bold text-foreground">
+            {polls.filter((poll) => getPollStatus(poll) === "expired").length}
+          </p>
+        </div>
+        <HourglassIcon className="h-6 w-6 text-foreground" />
+      </div>
+    </CardContent>
+  </Card>
+</div>
+
 
           {polls.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
