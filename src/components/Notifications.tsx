@@ -162,11 +162,7 @@ export default function Notifications() {
                   <span className="font-semibold">{notif.title}</span>
                 </div>
                 <p className="text-sm text-foreground">{notif.message}</p>
-                {notif.link && (
-                  <Link href={notif.link} className="text-xs text-blue-500 hover:underline">
-                    View
-                  </Link>
-                )}
+              
                 <span className="text-xs text-muted-foreground self-end">
                   {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
                 </span>
