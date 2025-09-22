@@ -203,7 +203,7 @@ const CommentItem = ({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">
+                        <AlertDialogAction onClick={() => onDelete(comment.id)} className="">
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
