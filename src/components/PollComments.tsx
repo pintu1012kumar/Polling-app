@@ -151,7 +151,7 @@ const CommentItem = ({
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground text-xs flex-wrap">
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
+            {/* <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
               onClick={() => onVote(comment.id, "up")}>
               <span className="flex items-center gap-1">
                 <ArrowBigUp className="w-4 h-4" /> {comment.upvotes}
@@ -162,7 +162,7 @@ const CommentItem = ({
               <span className="flex items-center gap-1">
                 <ArrowBigDown className="w-4 h-4" /> {comment.downvotes}
               </span>
-            </Button>
+            </Button> */}
 
             {!comment.is_deleted && (
               <>
@@ -187,7 +187,7 @@ const CommentItem = ({
                 {currentUserId === comment.user_id && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-red-500 hover:text-red-600 transition-colors">
+                      <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-black transition-colors">
                         <span className="flex items-center gap-1">
                           <Trash2 className="w-4 h-4" /> Delete
                         </span>
@@ -426,9 +426,9 @@ export default function PollComments({ pollId }: PollCommentsProps) {
     <div className="space-y-6">
       <div className="text-xl font-bold border-b pb-2 text-foreground flex items-center justify-between">
         Comments ({comments.length})
-        <Button variant="ghost" onClick={fetchComments} size="sm">
+        {/* <Button variant="ghost" onClick={fetchComments} size="sm">
           <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button>
+        </Button> */}
       </div>
 
       {/* Root input */}

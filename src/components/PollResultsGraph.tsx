@@ -113,12 +113,12 @@ export default function PollResultsGraph({
           </Tabs>
           <div className="flex items-center gap-2">
             <Popover>
-              <PopoverTrigger asChild>
+              {/* <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
                   <Filter className="mr-2 h-4 w-4" />
                   Filters
                 </Button>
-              </PopoverTrigger>
+              </PopoverTrigger> */}
               <PopoverContent className="w-56" align="end">
                 <div className="grid gap-2">
                   <h4 className="font-medium leading-none">Filters</h4>
