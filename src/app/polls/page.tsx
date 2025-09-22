@@ -371,11 +371,9 @@ export default function PollsPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-accent/10 rounded-full mb-4">
-            <Vote className="w-8 h-8 text-accent" />
-          </div>
-          <h1 className="text-5xl font-extrabold tracking-tight text-foreground">Available Polls</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
+         
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Available Polls</h1>
+          <p className="text-xl text-muted-foreground max-w-xl mx-auto text-balance">
             Cast your vote on the latest polls and make your voice heard
           </p>
         </div>
@@ -496,18 +494,20 @@ export default function PollsPage() {
                       <Separator className="bg-border" />
 
                       {/* Poll timing information */}
-                      <div className="space-y-2 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg">
-                        <p className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-accent" />
-                          <span className="font-medium">Start:</span>{" "}
-                          {poll.start_at ? new Date(poll.start_at).toLocaleDateString() : "Not specified"}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-accent" />
-                          <span className="font-medium">End:</span>{" "}
-                          {poll.end_at ? new Date(poll.end_at).toLocaleDateString() : "Not specified"}
-                        </p>
-                      </div>
+                     <div className="space-y-2 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg">
+  <div className="flex justify-between items-center">
+    <p className="flex items-center gap-2">
+      <Clock className="w-4 h-4 text-accent" />
+      <span className="font-medium">Start:</span>
+      {poll.start_at ? new Date(poll.start_at).toLocaleDateString() : "Not specified"}
+    </p>
+    <p className="flex items-center gap-2">
+      <Clock className="w-4 h-4 text-accent" />
+      <span className="font-medium">End:</span>
+      {poll.end_at ? new Date(poll.end_at).toLocaleDateString() : "Not specified"}
+    </p>
+  </div>
+</div>
 
                       {/* Poll options */}
                       <div className="space-y-3">
