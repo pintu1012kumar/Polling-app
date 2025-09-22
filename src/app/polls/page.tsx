@@ -495,44 +495,40 @@ export default function PollsPage() {
                       <Separator className="bg-border" />
 
                       {/* Poll options */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-foreground">Options:</h4>
-                        {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
-                          const isVotedOption = hasVoted && votedOptions.includes(opt)
-                          const isSelected = selectedThisSession.includes(opt)
+<div className="space-y-3">
+  <h4 className="font-semibold text-foreground">Options:</h4>
+  {[poll.option1, poll.option2, poll.option3, poll.option4].map((opt, idx) => {
+    const isVotedOption = hasVoted && votedOptions.includes(opt)
+    const isSelected = selectedThisSession.includes(opt)
 
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex items-center space-x-3 p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
-                                hasVoted
-                                  ? isVotedOption
-                                    ? "border-accent bg-accent/5 shadow-sm"
-                                    : "border-muted bg-muted/20 opacity-60"
-                                  : isSelected
-                                    ? "border-accent bg-accent/5 shadow-sm"
-                                    : "border-muted hover:border-accent/50 hover:bg-muted/30"
-                              } ${!isActive && "pointer-events-none opacity-50"}`}
-                              onClick={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
-                            >
-                              <Checkbox
-                                id={`${poll.id}-option-${idx}`}
-                                checked={isSelected || isVotedOption}
-                                onCheckedChange={() => handleToggleOption(poll.id, opt)}
-                                disabled={!isActive || hasVoted}
-                                className="w-5 h-5"
-                              />
-                              <Label
-                                htmlFor={`${poll.id}-option-${idx}`}
-                                className="flex-1 cursor-pointer font-medium text-foreground"
-                              >
-                                {opt}
-                              </Label>
-                              {isVotedOption && <CheckCheck className="h-5 w-5 text-accent shrink-0" />}
-                            </div>
-                          )
-                        })}
-                      </div>
+    return (
+      <label
+        key={idx}
+        htmlFor={`${poll.id}-option-${idx}`}
+        className={`flex items-center space-x-3 p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+          hasVoted
+            ? isVotedOption
+              ? "border-accent bg-accent/5 shadow-sm"
+              : "border-muted bg-muted/20 opacity-60"
+            : isSelected
+              ? "border-accent bg-accent/5 shadow-sm"
+              : "border-muted hover:border-accent/50 hover:bg-muted/30"
+        } ${!isActive && "pointer-events-none opacity-50"}`}
+      >
+        <Checkbox
+          id={`${poll.id}-option-${idx}`}
+          checked={isSelected || isVotedOption}
+          onCheckedChange={() => isActive && !hasVoted && handleToggleOption(poll.id, opt)}
+          disabled={!isActive || hasVoted}
+          className="w-5 h-5"
+        />
+        <span className="flex-1 font-medium text-foreground">{opt}</span>
+        {isVotedOption && <CheckCheck className="h-5 w-5 text-accent shrink-0" />}
+      </label>
+    )
+  })}
+</div>
+
 
                       {/* Action buttons */}
                       <div className="flex flex-col gap-4 pt-4">
