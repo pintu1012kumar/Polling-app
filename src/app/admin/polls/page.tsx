@@ -524,7 +524,7 @@ const handleSavePoll = async () => {
       )}
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8 space-y-4">
+        {/* <div className="mb-8 space-y-4">
           <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
@@ -551,27 +551,69 @@ const handleSavePoll = async () => {
                     ))}
                   </SelectContent>
                 </Select>
-                 <Button
-              onClick={() => {
-                resetForm()
-                const now = new Date()
-                const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
-                setStartTime(now.toISOString().substring(0, 16))
-                setEndTime(defaultEnd.toISOString().substring(0, 16))
-                setCreatePollModalOpen(true)
-                setTimeout(() => document.getElementById('question')?.focus(), 100)
-              }}
-              className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
-              size="lg"
-            >
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Create Poll
-            </Button>
+                
               </div>
              
             </div>
           </div>
-        </div>
+        </div> */}
+
+<div className="mb-8">
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    {/* Left Section: Search + Filter */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      {/* Search Input */}
+      <div className="relative flex-1 max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+        <Input
+          placeholder="Search polls by question..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 border-2 bg-card focus:border-accent transition-colors"
+        />
+      </div>
+
+      {/* Filter Dropdown */}
+      <div className="relative">
+        <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
+            <SelectValue placeholder="Filter by category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {pollCategories.map((category) => (
+              <SelectItem key={category.value} value={category.value}>
+                {category.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    {/* Right Section: Create Poll Button */}
+    <Button
+      onClick={() => {
+        resetForm()
+        const now = new Date()
+        const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
+        setStartTime(now.toISOString().substring(0, 16))
+        setEndTime(defaultEnd.toISOString().substring(0, 16))
+        setCreatePollModalOpen(true)
+        setTimeout(() => document.getElementById("question")?.focus(), 100)
+      }}
+      className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
+      size="lg"
+    >
+      <PlusCircle className="mr-2 h-5 w-5" />
+      Create Poll
+    </Button>
+  </div>
+</div>
+
+
+
 
         <div className="space-y-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-8">
