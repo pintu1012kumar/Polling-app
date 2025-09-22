@@ -8,9 +8,6 @@ import {
   MessageSquare,
   RefreshCw,
   Send,
-  ArrowBigUp,
-  ArrowBigDown,
-  Flag,
   Trash2,
   Reply,
   Loader2,
@@ -59,14 +56,13 @@ interface CommentItemProps {
   comment: CommentTree
   currentUserId: string | null
   replyingTo: string | null
-  newCommentContent: string
-  setNewCommentContent: (content: string) => void
+  replyContent: string
+  setReplyContent: (content: string) => void
   onReply: (id: string) => void
   onCancelReply: () => void
   onPostReply: () => void
   onVote: (id: string, type: "up" | "down") => void
   onDelete: (id: string) => void
-  onFlag: (id: string) => void
   expandedComments: Set<string>
   onToggleReplies: (id: string) => void
   isPostingReply: boolean
@@ -110,14 +106,13 @@ const CommentItem = ({
   comment,
   currentUserId,
   replyingTo,
-  newCommentContent,
-  setNewCommentContent,
+  replyContent,
+  setReplyContent,
   onReply,
   onCancelReply,
   onPostReply,
   onVote,
   onDelete,
-  onFlag,
   expandedComments,
   onToggleReplies,
   isPostingReply,
@@ -152,17 +147,17 @@ const CommentItem = ({
 
           <div className="flex items-center gap-2 text-muted-foreground text-xs flex-wrap">
             {/* <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-              onClick={() => onVote(comment.id, "up")}>
-              <span className="flex items-center gap-1">
-                <ArrowBigUp className="w-4 h-4" /> {comment.upvotes}
-              </span>
-            </Button>
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-              onClick={() => onVote(comment.id, "down")}>
-              <span className="flex items-center gap-1">
-                <ArrowBigDown className="w-4 h-4" /> {comment.downvotes}
-              </span>
-            </Button> */}
+                onClick={() => onVote(comment.id, "up")}>
+                <span className="flex items-center gap-1">
+                  <ArrowBigUp className="w-4 h-4" /> {comment.upvotes}
+                </span>
+              </Button>
+              <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
+                onClick={() => onVote(comment.id, "down")}>
+                <span className="flex items-center gap-1">
+                  <ArrowBigDown className="w-4 h-4" /> {comment.downvotes}
+                </span>
+              </Button> */}
 
             {!comment.is_deleted && (
               <>
@@ -210,15 +205,6 @@ const CommentItem = ({
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-
-                {currentUserId !== comment.user_id && (
-                  <Button variant="ghost" size="sm" className="h-auto p-1 text-xs text-yellow-500 hover:text-yellow-600 transition-colors"
-                    onClick={() => onFlag(comment.id)}>
-                    <span className="flex items-center gap-1">
-                      <Flag className="w-4 h-4" /> Flag
-                    </span>
-                  </Button>
-                )}
               </>
             )}
           </div>
@@ -227,8 +213,8 @@ const CommentItem = ({
             <div className="mt-4 space-y-2">
               <Textarea
                 placeholder={`Replying to ${authorUsername}...`}
-                value={newCommentContent}
-                onChange={(e) => setNewCommentContent(e.target.value)}
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
                 className="bg-muted"
               />
               <div className="flex gap-2 justify-end">
@@ -260,14 +246,13 @@ const CommentItem = ({
                   comment={child}
                   currentUserId={currentUserId}
                   replyingTo={replyingTo}
-                  newCommentContent={newCommentContent}
-                  setNewCommentContent={setNewCommentContent}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
                   onReply={onReply}
                   onCancelReply={onCancelReply}
                   onPostReply={onPostReply}
                   onVote={onVote}
                   onDelete={onDelete}
-                  onFlag={onFlag}
                   expandedComments={expandedComments}
                   onToggleReplies={onToggleReplies}
                   isPostingReply={isPostingReply}
@@ -283,7 +268,8 @@ const CommentItem = ({
 
 export default function PollComments({ pollId }: PollCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>([])
-  const [newCommentContent, setNewCommentContent] = useState("")
+  const [mainCommentContent, setMainCommentContent] = useState("")
+  const [replyContent, setReplyContent] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isPosting, setIsPosting] = useState(false)
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
@@ -322,7 +308,9 @@ export default function PollComments({ pollId }: PollCommentsProps) {
   }, [pollId, fetchComments])
 
   const handlePostComment = async () => {
-    if (!newCommentContent.trim()) {
+    const content = replyingTo ? replyContent : mainCommentContent;
+
+    if (!content.trim()) {
       toast.warning("Comment cannot be empty")
       return
     }
@@ -338,7 +326,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
     const newComment = {
       user_id: session.user.id,
       poll_id: pollId,
-      content: newCommentContent,
+      content: content,
       parent_comment_id: replyingTo,
     }
 
@@ -347,7 +335,11 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       console.error(error)
       toast.error("Failed to post comment", { description: error.message })
     } else {
-      setNewCommentContent("")
+      if (replyingTo) {
+        setReplyContent("")
+      } else {
+        setMainCommentContent("")
+      }
       setReplyingTo(null)
       fetchComments()
       toast.success("Comment posted successfully!")
@@ -388,17 +380,6 @@ export default function PollComments({ pollId }: PollCommentsProps) {
     }
   }
 
-  const handleFlag = async (id: string) => {
-    const { error } = await supabase.from("poll_comments").update({ is_flagged: true }).eq("id", id)
-    if (error) {
-      console.error(error)
-      toast.error("Failed to flag comment")
-    } else {
-      fetchComments()
-      toast.success("Comment flagged for review.")
-    }
-  }
-
   const handleToggleReplies = (id: string) => {
     setExpandedComments(prev => {
       const copy = new Set(prev)
@@ -410,7 +391,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
 
   const handleCancelReply = () => {
     setReplyingTo(null)
-    setNewCommentContent("")
+    setReplyContent("")
   }
 
   if (isLoading) {
@@ -426,21 +407,18 @@ export default function PollComments({ pollId }: PollCommentsProps) {
     <div className="space-y-6">
       <div className="text-xl font-bold border-b pb-2 text-foreground flex items-center justify-between">
         Comments ({comments.length})
-        {/* <Button variant="ghost" onClick={fetchComments} size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-        </Button> */}
       </div>
 
       {/* Root input */}
       <div className="p-4 rounded-lg border bg-card shadow-sm space-y-3">
         <Textarea
           placeholder="Write a new comment..."
-          value={newCommentContent}
-          onChange={(e) => setNewCommentContent(e.target.value)}
+          value={mainCommentContent}
+          onChange={(e) => setMainCommentContent(e.target.value)}
           className="bg-background min-h-[80px]"
         />
         <div className="flex justify-end gap-2">
-          <Button onClick={handlePostComment} disabled={isPosting || !newCommentContent.trim()} className="flex items-center gap-2">
+          <Button onClick={handlePostComment} disabled={isPosting || !mainCommentContent.trim()} className="flex items-center gap-2">
             {isPosting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {isPosting ? "Posting..." : "Submit"}
           </Button>
@@ -462,14 +440,13 @@ export default function PollComments({ pollId }: PollCommentsProps) {
                 comment={c}
                 currentUserId={currentUserId}
                 replyingTo={replyingTo}
-                newCommentContent={newCommentContent}
-                setNewCommentContent={setNewCommentContent}
+                replyContent={replyContent}
+                setReplyContent={setReplyContent}
                 onReply={setReplyingTo}
                 onCancelReply={handleCancelReply}
                 onPostReply={handlePostComment}
                 onVote={handleVote}
                 onDelete={handleDelete}
-                onFlag={handleFlag}
                 expandedComments={expandedComments}
                 onToggleReplies={handleToggleReplies}
                 isPostingReply={isPosting}
