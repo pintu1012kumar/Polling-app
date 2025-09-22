@@ -469,21 +469,7 @@ export default function ModeratePollsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
-      <div className="sticky top-0 z-40 border-b bg-card/50 shadow-sm backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-foreground">
-                Poll Moderation
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Edit, delete, and monitor polls
-              </p>
-            </div>
-            {/* The 'Create Poll' button has been removed */}
-          </div>
-        </div>
-      </div>
+     
 
       {alert.show && (
         <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-2">
@@ -499,8 +485,8 @@ export default function ModeratePollsPage() {
 
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="mb-8 space-y-4">
-          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col items-end gap-4 lg:flex-row lg:items-center lg:justify-end">
+            <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
               <Input
                 placeholder="Search polls by question..."
@@ -526,16 +512,7 @@ export default function ModeratePollsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedCategory && selectedCategory !== 'all' && (
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCategory('all')}
-                  className="border-2 transition-colors hover:border-accent"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Clear Filter
-                </Button>
-              )}
+             
             </div>
           </div>
         </div>
@@ -543,71 +520,71 @@ export default function ModeratePollsPage() {
         <div className="space-y-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-8">
             <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Total Polls
                     </p>
-                    <p className="text-3xl font-bold text-foreground">
+                    <p className="text-xl font-bold text-foreground">
                       {polls.length}
                     </p>
                   </div>
-                  <BarChartIcon className="h-8 w-8 text-foreground" />
+                  <BarChartIcon className="h-6 w-6 text-foreground" />
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Active Polls
                     </p>
-                    <p className="text-3xl font-bold text-foreground">
+                    <p className="text-xl font-bold text-foreground">
                       {
                         polls.filter((poll) => getPollStatus(poll) === 'active')
                           .length
                       }
                     </p>
                   </div>
-                  <Clock className="h-8 w-8 text-foreground" />
+                  <Clock className="h-6 w-6 text-foreground" />
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Upcoming
                     </p>
-                    <p className="text-3xl font-bold text-foreground">
+                    <p className="text-xl font-bold text-foreground">
                       {
                         polls.filter((poll) => getPollStatus(poll) === 'upcoming')
                           .length
                       }
                     </p>
                   </div>
-                  <Calendar className="h-8 w-8 text-foreground" />
+                  <Calendar className="h-6 w-6 text-foreground" />
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Expired
                     </p>
-                    <p className="text-3xl font-bold text-foreground">
+                    <p className="text-xl font-bold text-foreground">
                       {
                         polls.filter((poll) => getPollStatus(poll) === 'expired')
                           .length
                       }
                     </p>
                   </div>
-                  <HourglassIcon className="h-8 w-8 text-foreground" />
+                  <HourglassIcon className="h-6 w-6 text-foreground" />
                 </div>
               </CardContent>
             </Card>
@@ -633,7 +610,7 @@ export default function ModeratePollsPage() {
                               <Calendar className="mr-1 h-3 w-3 text-foreground" />
                               {new Date(poll.created_at).toLocaleDateString()}
                             </Badge>
-                            
+
                             {(poll.tags || []).map((tag) => (
                               <Badge
                                 key={tag}
@@ -675,16 +652,7 @@ export default function ModeratePollsPage() {
                         )}
                       </div>
                       <div className="space-y-2 text-sm text-foreground">
-                        <p className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-foreground" />
-                          <span className="font-medium">Start:</span>{' '}
-                          {new Date(poll.start_at || '').toLocaleString()}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-foreground" />
-                          <span className="font-medium">End:</span>{' '}
-                          {new Date(poll.end_at || '').toLocaleString()}
-                        </p>
+                      
                         {status === 'active' && (
                           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
                             <HourglassIcon className="h-3 w-3" />
@@ -835,7 +803,7 @@ export default function ModeratePollsPage() {
           />
         </DialogContent>
       </Dialog>
-      
+
       {/* Dialog for showing comments */}
       <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
         <DialogContent className="sm:max-w-2xl">

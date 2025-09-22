@@ -552,16 +552,7 @@ const handleSavePoll = async () => {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedCategory && selectedCategory !== 'all' && (
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCategory('all')}
-                  className="border-2 transition-colors hover:border-accent"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Clear Filter
-                </Button>
-              )}
+             
             </div>
           </div>
         </div>
@@ -701,16 +692,7 @@ const handleSavePoll = async () => {
                         )}
                       </div>
                       <div className="space-y-2 text-sm text-foreground">
-                        <p className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-foreground" />
-                          <span className="font-medium">Start:</span>{' '}
-                          {new Date(poll.start_at || '').toLocaleString()}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-foreground" />
-                          <span className="font-medium">End:</span>{' '}
-                          {new Date(poll.end_at || '').toLocaleString()}
-                        </p>
+                        
                         {status === 'active' && (
                           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
                             <HourglassIcon className="h-3 w-3" />
