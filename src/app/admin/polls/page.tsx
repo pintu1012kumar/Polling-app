@@ -551,6 +551,22 @@ const handleSavePoll = async () => {
                     ))}
                   </SelectContent>
                 </Select>
+                 <Button
+              onClick={() => {
+                resetForm()
+                const now = new Date()
+                const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
+                setStartTime(now.toISOString().substring(0, 16))
+                setEndTime(defaultEnd.toISOString().substring(0, 16))
+                setCreatePollModalOpen(true)
+                setTimeout(() => document.getElementById('question')?.focus(), 100)
+              }}
+              className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
+              size="lg"
+            >
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Create Poll
+            </Button>
               </div>
              
             </div>
