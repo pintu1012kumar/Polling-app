@@ -32,6 +32,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import PollResultsGraph from "@/components/PollResultsGraph"
 import PollComments from "../../components/PollComments"
 import { toast } from "sonner"
+import { formatDistanceToNow } from 'date-fns';
 
 // Interfaces for data types
 interface Poll {
@@ -371,7 +372,7 @@ export default function PollsPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center mb-12 space-y-4">
-         
+
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Available Polls</h1>
           <p className="text-xl text-muted-foreground max-w-xl mx-auto text-balance">
             Cast your vote on the latest polls and make your voice heard
@@ -406,16 +407,7 @@ export default function PollsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedCategory && selectedCategory !== "all" && (
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCategory("all")}
-                  className="h-12 border-2 hover:border-accent transition-colors bg-card"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Clear Filter
-                </Button>
-              )}
+             
             </div>
           </div>
         </div>
@@ -454,32 +446,41 @@ export default function PollsPage() {
                       <div className="flex-1 pr-4">
                         <h3 className="text-lg font-bold text-foreground text-balance">{poll.question}</h3>
                         <div className="flex flex-wrap gap-2 mt-2">
+                          {status === "active" && poll.end_at && (
+                            <Badge className="text-xs bg-transparent border-0 text-muted-foreground">
+                              <HourglassIcon className="mr-1 h-3 w-3" />
+                              Expires {formatDistanceToNow(new Date(poll.end_at), { addSuffix: true })}
+                            </Badge>
+                          )}
+                          {(poll.tags || []).map((tag) => (
+                            <Badge
+                              key={tag}
+                              className="text-xs"
+                              variant="secondary"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
                           {status === "upcoming" && (
                             <Badge
                               variant="outline"
-                              className="flex items-center gap-1 "
+                              className="flex items-center gap-1 text-xs bg-transparent border-0 text-muted-foreground"
                             >
-                              <Calendar className="w-3 h-3" />
+                              <Calendar className="w-3 h-3 text-foreground" />
                               Upcoming
                             </Badge>
                           )}
-                          {status === "active" && (
-                            <Badge className="flex items-center gap-1 ">
-                              <HourglassIcon className="w-3 h-3" />
-                              Active
-                            </Badge>
-                          )}
                           {status === "expired" && (
-                            <Badge className="flex items-center gap-1 text-xs">
-                              <HourglassIcon className="w-3 h-3" />
+                            <Badge className="flex items-center gap-1 text-xs bg-transparent border-0 text-muted-foreground">
+                              <HourglassIcon className="w-3 h-3 text-foreground" />
                               Expired
                             </Badge>
                           )}
-                          <Badge variant="secondary" className=" text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {isMultiple ? "Multiple" : "Single"}
                           </Badge>
                           {hasVoted && (
-                            <Badge className="bg-white text-black border-green-200 text-xs dark:bg-black dark:text-white ">
+                            <Badge className="text-xs bg-transparent border-0 text-muted-foreground">
                               <CheckCheck className="w-3 h-3 mr-1" />
                               Voted
                             </Badge>
@@ -492,22 +493,6 @@ export default function PollsPage() {
                   <AccordionContent className="px-6 pb-6">
                     <div className="space-y-4">
                       <Separator className="bg-border" />
-
-                      {/* Poll timing information */}
-                     <div className="space-y-2 text-sm text-muted-foreground bg-muted/20 p-4 rounded-lg">
-  <div className="flex justify-between items-center">
-    <p className="flex items-center gap-2">
-      <Clock className="w-4 h-4 text-accent" />
-      <span className="font-medium">Start:</span>
-      {poll.start_at ? new Date(poll.start_at).toLocaleDateString() : "Not specified"}
-    </p>
-    <p className="flex items-center gap-2">
-      <Clock className="w-4 h-4 text-accent" />
-      <span className="font-medium">End:</span>
-      {poll.end_at ? new Date(poll.end_at).toLocaleDateString() : "Not specified"}
-    </p>
-  </div>
-</div>
 
                       {/* Poll options */}
                       <div className="space-y-3">
