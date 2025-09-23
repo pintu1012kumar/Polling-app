@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
   MessageSquare,
-  RefreshCw,
-  Send,
-  Trash2,
-  Reply,
   Loader2,
+  Send,
+  Reply,
+  Trash2,
   ChevronDown,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -60,7 +59,7 @@ interface CommentItemProps {
   setReplyContent: (content: string) => void
   onReply: (id: string) => void
   onCancelReply: () => void
-  onPostReply: () => void
+  onPostReply: (source: "reply") => void
   onVote: (id: string, type: "up" | "down") => void
   onDelete: (id: string) => void
   expandedComments: Set<string>
@@ -117,11 +116,11 @@ const CommentItem = ({
   onToggleReplies,
   isPostingReply,
 }: CommentItemProps) => {
-  const isExpanded = expandedComments.has(comment.id);
-  const isReplyingHere = replyingTo === comment.id;
+  const isExpanded = expandedComments.has(comment.id)
+  const isReplyingHere = replyingTo === comment.id
 
-  const authorUsername = comment.author_username || 'Guest';
-  const authorInitials = authorUsername.slice(0, 2).toUpperCase();
+  const authorUsername = comment.author_username || 'Guest'
+  const authorInitials = authorUsername.slice(0, 2).toUpperCase()
 
   return (
     <div className="py-4 first:pt-0 last:pb-0">
@@ -146,31 +145,26 @@ const CommentItem = ({
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground text-xs flex-wrap">
-            {/* <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-                onClick={() => onVote(comment.id, "up")}>
-                <span className="flex items-center gap-1">
-                  <ArrowBigUp className="w-4 h-4" /> {comment.upvotes}
-                </span>
-              </Button>
-              <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-                onClick={() => onVote(comment.id, "down")}>
-                <span className="flex items-center gap-1">
-                  <ArrowBigDown className="w-4 h-4" /> {comment.downvotes}
-                </span>
-              </Button> */}
-
             {!comment.is_deleted && (
               <>
-                <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-                  onClick={() => onReply(comment.id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-1 text-xs hover:text-primary transition-colors"
+                  onClick={() => onReply(comment.id)}
+                >
                   <span className="flex items-center gap-1">
                     <Reply className="w-4 h-4" /> Reply
                   </span>
                 </Button>
 
                 {comment.children.length > 0 && (
-                  <Button variant="ghost" size="sm" className="h-auto p-1 text-xs hover:text-primary transition-colors"
-                    onClick={() => onToggleReplies(comment.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-1 text-xs hover:text-primary transition-colors"
+                    onClick={() => onToggleReplies(comment.id)}
+                  >
                     <span className="flex items-center gap-1">
                       <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                       {isExpanded ? "Hide" : "View"} {comment.children.length}{" "}
@@ -198,7 +192,7 @@ const CommentItem = ({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(comment.id)} className="">
+                        <AlertDialogAction onClick={() => onDelete(comment.id)}>
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -221,7 +215,12 @@ const CommentItem = ({
                 <Button variant="outline" size="sm" onClick={onCancelReply}>
                   Cancel
                 </Button>
-                <Button size="sm" onClick={onPostReply} disabled={isPostingReply} className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => onPostReply("reply")}
+                  disabled={isPostingReply || !replyContent.trim()}
+                  className="flex items-center gap-2"
+                >
                   {isPostingReply ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -263,8 +262,8 @@ const CommentItem = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default function PollComments({ pollId }: PollCommentsProps) {
   const [comments, setComments] = useState<CommentTree[]>([])
@@ -307,8 +306,8 @@ export default function PollComments({ pollId }: PollCommentsProps) {
     fetchComments()
   }, [pollId, fetchComments])
 
-  const handlePostComment = async () => {
-    const content = replyingTo ? replyContent : mainCommentContent;
+  const handlePostComment = async (source: "root" | "reply") => {
+    const content = source === "reply" ? replyContent : mainCommentContent
 
     if (!content.trim()) {
       toast.warning("Comment cannot be empty")
@@ -327,7 +326,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       user_id: session.user.id,
       poll_id: pollId,
       content: content,
-      parent_comment_id: replyingTo,
+      parent_comment_id: source === "reply" ? replyingTo : null,
     }
 
     const { error } = await supabase.from("poll_comments").insert(newComment)
@@ -335,14 +334,14 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       console.error(error)
       toast.error("Failed to post comment", { description: error.message })
     } else {
-      if (replyingTo) {
+      if (source === "reply") {
         setReplyContent("")
       } else {
         setMainCommentContent("")
       }
       setReplyingTo(null)
       fetchComments()
-      toast.success("Comment posted successfully!")
+      toast.success(`Comment posted from ${source === "reply" ? "reply" : "main"} input!`)
     }
     setIsPosting(false)
   }
@@ -359,7 +358,7 @@ export default function PollComments({ pollId }: PollCommentsProps) {
       vote_type_param: type === "up" ? 1 : -1,
       user_id_param: session.user.id
     })
-    
+
     if (error) {
       console.error(error)
       toast.error("Failed to vote", { description: "You may have already voted on this comment." })
@@ -418,7 +417,11 @@ export default function PollComments({ pollId }: PollCommentsProps) {
           className="bg-background min-h-[80px]"
         />
         <div className="flex justify-end gap-2">
-          <Button onClick={handlePostComment} disabled={isPosting || !mainCommentContent.trim()} className="flex items-center gap-2">
+          <Button
+            onClick={() => handlePostComment("root")}
+            disabled={isPosting || !mainCommentContent.trim()}
+            className="flex items-center gap-2"
+          >
             {isPosting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {isPosting ? "Posting..." : "Submit"}
           </Button>
