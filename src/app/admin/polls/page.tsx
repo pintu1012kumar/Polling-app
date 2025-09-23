@@ -81,6 +81,14 @@ const pollCategories = [
   { value: 'science', label: 'Science' },
 ]
 
+// Poll status options for the new dropdown
+const pollStatuses = [
+  { value: 'all', label: 'All Polls' },
+  { value: 'active', label: 'Active' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'expired', label: 'Expired' },
+];
+
 // File size constants in KB
 const MIN_FILE_SIZE_KB = 10
 const MAX_FILE_SIZE_KB = 5000
@@ -132,6 +140,8 @@ export default function AdminPollsPage() {
   const [tags, setTags] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'upcoming' | 'expired'>('all');
+
 
   const router = useRouter()
 
@@ -151,6 +161,20 @@ export default function AdminPollsPage() {
     setShowDeleteConfirm(true)
   }
 
+  const getPollStatus = useCallback((poll: Poll) => {
+    const now = new Date()
+    const startTime = poll.start_at ? new Date(poll.start_at) : null
+    const endTime = poll.end_at ? new Date(poll.end_at) : null
+
+    if (startTime && now < startTime) {
+      return 'upcoming'
+    }
+    if (endTime && now > endTime) {
+      return 'expired'
+    }
+    return 'active'
+  }, []);
+
   const fetchPolls = useCallback(async () => {
     setLoading(true)
     let query = supabase.from('polls').select('*').order('created_at', { ascending: false })
@@ -169,10 +193,14 @@ export default function AdminPollsPage() {
       console.error('Error fetching polls:', error.message)
       showAlert('Error', 'Failed to fetch polls.', 'destructive')
     } else {
-      setPolls(data || [])
+      let filteredPolls = data || [];
+      if (selectedStatus !== 'all') {
+          filteredPolls = filteredPolls.filter(poll => getPollStatus(poll) === selectedStatus);
+      }
+      setPolls(filteredPolls);
     }
     setLoading(false)
-  }, [searchQuery, selectedCategory])
+  }, [searchQuery, selectedCategory, selectedStatus, getPollStatus])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -217,7 +245,7 @@ export default function AdminPollsPage() {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, fetchPolls])
+  }, [searchQuery, selectedCategory, selectedStatus, fetchPolls])
 
   const handleShowResults = async (poll: Poll) => {
     setSelectedPoll(poll)
@@ -280,94 +308,94 @@ export default function AdminPollsPage() {
   }
 
 const handleSavePoll = async () => {
-    if (!question.trim() || options.some((opt) => !opt.trim())) {
-      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
-      return
-    }
+    if (!question.trim() || options.some((opt) => !opt.trim())) {
+      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
+      return
+    }
 
-    if (!startTime || !endTime) {
-      showAlert('Validation Error', 'Please set both start and end times.', 'destructive')
-      return
-    }
+    if (!startTime || !endTime) {
+      showAlert('Validation Error', 'Please set both start and end times.', 'destructive')
+      return
+    }
 
-    const startDate = new Date(startTime)
-    const endDate = new Date(endTime)
+    const startDate = new Date(startTime)
+    const endDate = new Date(endTime)
 
-    if (endDate <= startDate) {
-      showAlert('Validation Error', 'End time must be after start time.', 'destructive')
-      return
-    }
+    if (endDate <= startDate) {
+      showAlert('Validation Error', 'End time must be after start time.', 'destructive')
+      return
+    }
 
-    setLoading(true)
-    let fileUrl: string | null = null
-    let fileType: string | null = null
-    if (file) {
-      try {
-        const ext = file.name.split('.').pop()
-        const uniqueName = `${crypto.randomUUID()}.${ext}`
-        const filePath = `polls/${uniqueName}`
-        const { error: uploadError } = await supabase.storage.from('poll-files').upload(filePath, file)
-        if (uploadError) throw uploadError
-        const { data } = supabase.storage.from('poll-files').getPublicUrl(filePath)
-        fileUrl = data.publicUrl
-        fileType = file.type
-      } catch (err) {
-        const error = err as PostgrestError
-        console.error('File upload failed:', error.message)
-        showAlert('Error', 'File upload failed. Please try again.', 'destructive')
-        setLoading(false)
-        return
-      }
-    }
+    setLoading(true)
+    let fileUrl: string | null = null
+    let fileType: string | null = null
+    if (file) {
+      try {
+        const ext = file.name.split('.').pop()
+        const uniqueName = `${crypto.randomUUID()}.${ext}`
+        const filePath = `polls/${uniqueName}`
+        const { error: uploadError } = await supabase.storage.from('poll-files').upload(filePath, file)
+        if (uploadError) throw uploadError
+        const { data } = supabase.storage.from('poll-files').getPublicUrl(filePath)
+        fileUrl = data.publicUrl
+        fileType = file.type
+      } catch (err) {
+        const error = err as PostgrestError
+        console.error('File upload failed:', error.message)
+        showAlert('Error', 'File upload failed. Please try again.', 'destructive')
+        setLoading(false)
+        return
+      }
+    }
 
-    const tagsArray = tags ? [tags] : []
+    const tagsArray = tags ? [tags] : []
 
-    const pollData = {
-      question,
-      option1: options[0],
-      option2: options[1],
-      option3: options[2],
-      option4: options[3],
-      poll_type: pollType,
-      file_url: fileUrl,
-      file_type: fileType,
-      start_at: startTime,
-      end_at: endTime,
-      tags: tagsArray,
-      status: 'open', // <-- ADD THIS LINE
-    }
+    const pollData = {
+      question,
+      option1: options[0],
+      option2: options[1],
+      option3: options[2],
+      option4: options[3],
+      poll_type: pollType,
+      file_url: fileUrl,
+      file_type: fileType,
+      start_at: startTime,
+      end_at: endTime,
+      tags: tagsArray,
+      status: 'open', // <-- ADD THIS LINE
+    }
 
-    if (editingId) {
-      try {
-        // Delete the old poll first to 'replace' it
-        const { error: deleteError } = await supabase.from('polls').delete().eq('id', editingId)
-        if (deleteError) throw deleteError
+    if (editingId) {
+      try {
+        // Delete the old poll first to 'replace' it
+        const { error: deleteError } = await supabase.from('polls').delete().eq('id', editingId)
+        if (deleteError) throw deleteError
 
-        // Then create the new poll with the updated data
-        const { error: insertError } = await supabase.from('polls').insert([pollData])
-        if (insertError) throw insertError
+        // Then create the new poll with the updated data
+        const { error: insertError } = await supabase.from('polls').insert([pollData])
+        if (insertError) throw insertError
 
-        showAlert('Success', 'Poll updated successfully. (Old version deleted)', 'default')
-      } catch (err) {
-        const error = err as PostgrestError
-        console.error('Error during poll replacement:', error.message)
-        showAlert('Error', 'Failed to update poll.', 'destructive')
-      }
-    } else {
-      // Original logic for creating a new poll
-      const { error } = await supabase.from('polls').insert([pollData])
-      if (error) {
-        console.error('Error creating poll:', error.message)
-        showAlert('Error', 'Failed to create poll.', 'destructive')
-      } else {
-        showAlert('Success', 'Poll created successfully.', 'default')
-      }
-    }
+        showAlert('Success', 'Poll updated successfully. (Old version deleted)', 'default')
+      } catch (err) {
+        const error = err as PostgrestError
+        console.error('Error during poll replacement:', error.message)
+        showAlert('Error', 'Failed to update poll.', 'destructive')
+      }
+    } else {
+      // Original logic for creating a new poll
+      const { error } = await supabase.from('polls').insert([pollData])
+      if (error) {
+        console.error('Error creating poll:', error.message)
+        showAlert('Error', 'Failed to create poll.', 'destructive')
+      } else {
+        showAlert('Success', 'Poll created successfully.', 'default')
+      }
+    }
 
-    setLoading(false)
-    resetForm()
-    fetchPolls()
-  }
+    setLoading(false)
+    resetForm()
+    fetchPolls()
+  }
   const handleDeletePoll = async (id: string, fileUrl?: string) => {
     try {
       if (fileUrl) {
@@ -446,20 +474,6 @@ const handleSavePoll = async () => {
     }
   }
 
-  const getPollStatus = (poll: Poll) => {
-    const now = new Date()
-    const startTime = poll.start_at ? new Date(poll.start_at) : null
-    const endTime = poll.end_at ? new Date(poll.end_at) : null
-
-    if (startTime && now < startTime) {
-      return 'upcoming'
-    }
-    if (endTime && now > endTime) {
-      return 'expired'
-    }
-    return 'active'
-  }
-
   if (isAuthLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-background to-muted/20">
@@ -495,163 +509,146 @@ const handleSavePoll = async () => {
       )}
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* <div className="mb-8 space-y-4">
-          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-              <Input
-                placeholder="Search polls by question..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-2 bg-card focus:border-accent transition-colors"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {pollCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
+        
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-6">
+            <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Total Polls
+                    </p>
+                    <p className="text-xl font-bold text-foreground">{polls.length}</p>
+                  </div>
+                  <BarChartIcon className="h-6 w-6 text-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Active Polls
+                    </p>
+                    <p className="text-xl font-bold text-foreground">
+                      {polls.filter((poll) => getPollStatus(poll) === "active").length}
+                    </p>
+                  </div>
+                  <Clock className="h-6 w-6 text-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Upcoming
+                    </p>
+                    <p className="text-xl font-bold text-foreground">
+                      {polls.filter((poll) => getPollStatus(poll) === "upcoming").length}
+                    </p>
+                  </div>
+                  <Calendar className="h-6 w-6 text-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Expired
+                    </p>
+                    <p className="text-xl font-bold text-foreground">
+                      {polls.filter((poll) => getPollStatus(poll) === "expired").length}
+                    </p>
+                  </div>
+                  <HourglassIcon className="h-6 w-6 text-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="mb-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              {/* Left Section: Search + Filters */}
+              <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Input
+                    placeholder="Search polls by question..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 border-2 bg-card focus:border-accent transition-colors"
+                  />
+                </div>
+
+                {/* Category Filter Dropdown */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {pollCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Status Filter Dropdown */}
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={(value) => setSelectedStatus(value as 'all' | 'active' | 'upcoming' | 'expired')}
+                  >
+                    <SelectTrigger className="w-[180px] border-2 pl-10 bg-card focus:border-accent">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pollStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-             
+
+              {/* Right Section: Create Poll Button */}
+              <Button
+                onClick={() => {
+                  resetForm()
+                  const now = new Date()
+                  const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
+                  setStartTime(now.toISOString().substring(0, 16))
+                  setEndTime(defaultEnd.toISOString().substring(0, 16))
+                  setCreatePollModalOpen(true)
+                  setTimeout(() => document.getElementById("question")?.focus(), 100)
+                }}
+                className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
+                size="lg"
+              >
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Create Poll
+              </Button>
             </div>
           </div>
-        </div> */}
-
-<div className="mb-8">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-end">
-    {/* Right Section: Search + Filter + Button */}
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      {/* Search Input */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-        <Input
-          placeholder="Search polls by question..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 border-2 bg-card focus:border-accent transition-colors"
-        />
-      </div>
-
-      {/* Filter Dropdown */}
-      <div className="relative">
-        <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {pollCategories.map((category) => (
-              <SelectItem key={category.value} value={category.value}>
-                {category.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Create Poll Button */}
-      <Button
-        onClick={() => {
-          resetForm()
-          const now = new Date()
-          const defaultEnd = new Date(now.getTime() + 4 * 60 * 60 * 1000)
-          setStartTime(now.toISOString().substring(0, 16))
-          setEndTime(defaultEnd.toISOString().substring(0, 16))
-          setCreatePollModalOpen(true)
-          setTimeout(() => document.getElementById("question")?.focus(), 100)
-        }}
-        className="bg-accent text-accent-foreground transition-all duration-200 hover:bg-accent/90 hover:shadow-xl shadow-lg"
-        size="lg"
-      >
-        <PlusCircle className="mr-2 h-5 w-5" />
-        Create Poll
-      </Button>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-        <div className="space-y-8">
-<div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-6">
-  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Total Polls
-          </p>
-          <p className="text-xl font-bold text-foreground">{polls.length}</p>
-        </div>
-        <BarChartIcon className="h-6 w-6 text-foreground" />
-      </div>
-    </CardContent>
-  </Card>
-
-  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Active Polls
-          </p>
-          <p className="text-xl font-bold text-foreground">
-            {polls.filter((poll) => getPollStatus(poll) === "active").length}
-          </p>
-        </div>
-        <Clock className="h-6 w-6 text-foreground" />
-      </div>
-    </CardContent>
-  </Card>
-
-  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Upcoming
-          </p>
-          <p className="text-xl font-bold text-foreground">
-            {polls.filter((poll) => getPollStatus(poll) === "upcoming").length}
-          </p>
-        </div>
-        <Calendar className="h-6 w-6 text-foreground" />
-      </div>
-    </CardContent>
-  </Card>
-
-  <Card className="bg-gradient-to-br from-card to-card/80 border transition-colors hover:border-accent/50">
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Expired
-          </p>
-          <p className="text-xl font-bold text-foreground">
-            {polls.filter((poll) => getPollStatus(poll) === "expired").length}
-          </p>
-        </div>
-        <HourglassIcon className="h-6 w-6 text-foreground" />
-      </div>
-    </CardContent>
-  </Card>
-</div>
-
+          
 
           {polls.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -673,18 +670,17 @@ const handleSavePoll = async () => {
                               <Calendar className="mr-1 h-3 w-3 text-foreground" />
                               {new Date(poll.created_at).toLocaleDateString()}
                             </Badge>
-            
+
                             {(poll.tags || []).map((tag) => (
                               <Badge
                                 key={tag}
-                                
                                 className=" text-xs"
                               >
                                 {tag}
                               </Badge>
                             ))}
                             {status === 'active' && (
-                              <Badge className="  text-xs">
+                              <Badge className="  text-xs">
                                 <HourglassIcon className="mr-1 h-3 w-3" />
                                 Active
                               </Badge>
@@ -696,7 +692,7 @@ const handleSavePoll = async () => {
                               </Badge>
                             )}
                             {status === 'expired' && (
-                              <Badge  className="text-xs">
+                              <Badge className="text-xs">
                                 <HourglassIcon className="mr-1 h-3 w-3" />
                                 Expired
                               </Badge>
@@ -715,7 +711,7 @@ const handleSavePoll = async () => {
                         )}
                       </div>
                       <div className="space-y-2 text-sm text-foreground">
-                        
+
                         {status === 'active' && (
                           <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
                             <HourglassIcon className="h-3 w-3" />
@@ -871,9 +867,9 @@ const handleSavePoll = async () => {
       {/* Dialog for showing comments */}
       <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+          {/* <DialogHeader>
             <DialogTitle className="text-2xl">Comments</DialogTitle>
-          </DialogHeader>
+          </DialogHeader> */}
           <div className="py-4">
             {selectedPoll && <PollComments pollId={selectedPoll.id} />}
           </div>

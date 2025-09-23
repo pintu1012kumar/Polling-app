@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -35,6 +35,32 @@ export default function PollResultsGraph({
 }: PollResultsGraphProps) {
   const [chartType, setChartType] = useState<"bar" | "pie" | "line">("bar")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [lineChartColor, setLineChartColor] = useState<string>("#000"); // State to hold dynamic line color
+
+  // Effect to determine line chart color based on theme
+  useEffect(() => {
+    // Declare htmlElement here so it's accessible throughout the hook
+    const htmlElement = document.documentElement;
+
+    const getThemeAwareColor = () => {
+      const isDarkMode = htmlElement.classList.contains('dark');
+      // White in dark mode, black in light mode
+      return isDarkMode ? 'hsl(0 0% 100%)' : 'hsl(0 0% 0%)';
+    };
+
+    // Set initial color
+    setLineChartColor(getThemeAwareColor());
+
+    // Use MutationObserver to react to theme changes (e.g., when 'dark' class is added/removed)
+    const observer = new MutationObserver(() => {
+      setLineChartColor(getThemeAwareColor());
+    });
+
+    observer.observe(htmlElement, { attributes: true, attributeFilter: ['class'] });
+
+    // Cleanup function to disconnect the observer when the component unmounts
+    return () => observer.disconnect();
+  }, []);
 
   // Function to filter and sort the data
   const getFilteredData = () => {
@@ -42,9 +68,6 @@ export default function PollResultsGraph({
     if (selectedCategory !== "all") {
       data = data.filter(result => result.category === selectedCategory);
     }
-    // To make the line chart look like the image, the data should be sorted by a continuous value like date.
-    // If your data has a 'createdAt' field, you can sort it like this:
-    // data.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     return data;
   }
 
@@ -181,32 +204,29 @@ export default function PollResultsGraph({
               </PieChart>
             ) : (
              <LineChart
-  data={filteredData}
-  margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
->
-  <XAxis
-    dataKey="name"
-    interval={0}
-    angle={-45}
-    textAnchor="end"
-    height={60}
-    fontSize={12}
-    stroke="#000" // Black axis line & labels
-  />
-  <YAxis allowDecimals={false} stroke="#000" />
-  <Tooltip />
-
-  {/* Solid black line with round dots */}
-  <Line
-    type="monotone"
-    dataKey="votes"
-    stroke="#000"
-    strokeWidth={3}
-    dot={{ r: 6, fill: "#000", stroke: "#000" }}   // black filled dots
-    activeDot={{ r: 8, fill: "#000", stroke: "#000" }}
-  />
-</LineChart>
-
+    data={filteredData}
+    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+  >
+    <XAxis
+      dataKey="name"
+      interval={0}
+      angle={-45}
+      textAnchor="end"
+      height={60}
+      fontSize={12}
+      stroke={lineChartColor}
+    />
+    <YAxis allowDecimals={false} stroke={lineChartColor} />
+    <Tooltip />
+    <Line
+      type="monotone"
+      dataKey="votes"
+      stroke={lineChartColor}
+      strokeWidth={3}
+      dot={{ r: 6, fill: lineChartColor, stroke: lineChartColor }}
+      activeDot={{ r: 8, fill: lineChartColor, stroke: lineChartColor }}
+    />
+  </LineChart>
             )}
           </ResponsiveContainer>
         </div>

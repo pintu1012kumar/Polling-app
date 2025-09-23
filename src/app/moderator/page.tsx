@@ -80,6 +80,15 @@ const pollCategories = [
   { value: 'science', label: 'Science' },
 ]
 
+// Poll status options for the new dropdown
+const pollStatuses = [
+  { value: 'all', label: 'All Polls' },
+  { value: 'active', label: 'Active' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'expired', label: 'Expired' },
+];
+
+
 // File size constants in KB
 const MIN_FILE_SIZE_KB = 10
 const MAX_FILE_SIZE_KB = 5000
@@ -132,6 +141,9 @@ export default function ModeratePollsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
 
+  // New state for poll status filter
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'upcoming' | 'expired'>('all');
+
   const router = useRouter()
 
   const showAlert = (
@@ -149,6 +161,20 @@ export default function ModeratePollsPage() {
     setPollToDelete({ id, fileUrl })
     setShowDeleteConfirm(true)
   }
+  
+  const getPollStatus = useCallback((poll: Poll) => {
+    const now = new Date()
+    const startTime = poll.start_at ? new Date(poll.start_at) : null
+    const endTime = poll.end_at ? new Date(poll.end_at) : null
+  
+    if (startTime && now < startTime) {
+      return 'upcoming'
+    }
+    if (endTime && now > endTime) {
+      return 'expired'
+    }
+    return 'active'
+  }, []);
 
   const fetchPolls = useCallback(async () => {
     setLoading(true)
@@ -168,10 +194,14 @@ export default function ModeratePollsPage() {
       console.error('Error fetching polls:', error.message)
       showAlert('Error', 'Failed to fetch polls.', 'destructive')
     } else {
-      setPolls(data || [])
+        let filteredPolls = data || [];
+        if (selectedStatus !== 'all') {
+            filteredPolls = filteredPolls.filter(poll => getPollStatus(poll) === selectedStatus);
+        }
+      setPolls(filteredPolls);
     }
     setLoading(false)
-  }, [searchQuery, selectedCategory])
+  }, [searchQuery, selectedCategory, selectedStatus, getPollStatus])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -216,7 +246,7 @@ export default function ModeratePollsPage() {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedCategory, fetchPolls])
+  }, [searchQuery, selectedCategory, selectedStatus, fetchPolls])
 
   const handleShowResults = async (poll: Poll) => {
     setSelectedPoll(poll)
@@ -435,20 +465,6 @@ export default function ModeratePollsPage() {
     }
   }
 
-  const getPollStatus = (poll: Poll) => {
-    const now = new Date()
-    const startTime = poll.start_at ? new Date(poll.start_at) : null
-    const endTime = poll.end_at ? new Date(poll.end_at) : null
-
-    if (startTime && now < startTime) {
-      return 'upcoming'
-    }
-    if (endTime && now > endTime) {
-      return 'expired'
-    }
-    return 'active'
-  }
-
   if (isAuthLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-background to-muted/20">
@@ -469,7 +485,7 @@ export default function ModeratePollsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/10">
-     
+      
 
       {alert.show && (
         <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-2">
@@ -484,39 +500,6 @@ export default function ModeratePollsPage() {
       )}
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col items-end gap-4 lg:flex-row lg:items-center lg:justify-end">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-              <Input
-                placeholder="Search polls by question..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-2 bg-card focus:border-accent transition-colors"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {pollCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-             
-            </div>
-          </div>
-        </div>
-
         <div className="space-y-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4 mb-8">
             <Card className="bg-gradient-to-br from-card to-card/80 border-2 transition-colors hover:border-accent/50">
@@ -590,6 +573,57 @@ export default function ModeratePollsPage() {
             </Card>
           </div>
 
+          <div className="mb-8 space-y-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              {/* Left Section: Search + Filters */}
+              <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Input
+                    placeholder="Search polls by question..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 border-2 bg-card focus:border-accent transition-colors"
+                  />
+                </div>
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-[200px] border-2 pl-10 bg-card focus:border-accent">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {pollCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={(value) => setSelectedStatus(value as 'all' | 'active' | 'upcoming' | 'expired')}
+                  >
+                    <SelectTrigger className="w-[180px] border-2 pl-10 bg-card focus:border-accent">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pollStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           {polls.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {polls.map((poll) => {
@@ -807,9 +841,9 @@ export default function ModeratePollsPage() {
       {/* Dialog for showing comments */}
       <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+          {/* <DialogHeader>
             <DialogTitle className="text-2xl">Comments</DialogTitle>
-          </DialogHeader>
+          </DialogHeader> */}
           <div className="py-4">
             {selectedPoll && <PollComments pollId={selectedPoll.id} />}
           </div>

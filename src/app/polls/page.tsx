@@ -621,9 +621,9 @@ export default function PollsPage() {
 
         <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
           <DialogContent className="sm:max-w-2xl bg-card text-foreground">
-            <DialogHeader>
+            {/* <DialogHeader>
               <DialogTitle className="text-2xl">Comments</DialogTitle>
-            </DialogHeader>
+            </DialogHeader> */}
             <div className="py-4">{selectedPoll && <PollComments pollId={selectedPoll.id} />}</div>
           </DialogContent>
         </Dialog>
