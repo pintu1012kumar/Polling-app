@@ -56,8 +56,8 @@ interface Poll {
   question: string
   option1: string
   option2: string
-  option3: string
-  option4: string
+  option3?: string
+  option4?: string
   poll_type: 'single' | 'multiple' | 'ranked'
   file_url?: string
   file_type?: string
@@ -96,7 +96,8 @@ const MAX_FILE_SIZE_KB = 5000
 export default function AdminPollsPage() {
   const [polls, setPolls] = useState<Poll[]>([])
   const [question, setQuestion] = useState('')
-  const [options, setOptions] = useState(['', '', '', ''])
+  // Start with two empty options
+  const [options, setOptions] = useState(['', ''])
   const [pollType, setPollType] = useState<'single' | 'multiple' | 'ranked'>(
     'single',
   )
@@ -195,7 +196,7 @@ export default function AdminPollsPage() {
     } else {
       let filteredPolls = data || [];
       if (selectedStatus !== 'all') {
-          filteredPolls = filteredPolls.filter(poll => getPollStatus(poll) === selectedStatus);
+        filteredPolls = filteredPolls.filter(poll => getPollStatus(poll) === selectedStatus);
       }
       setPolls(filteredPolls);
     }
@@ -264,6 +265,9 @@ export default function AdminPollsPage() {
       return
     }
 
+    // Filter out undefined options and cast to a string array
+    const pollOptions = [poll.option1, poll.option2, poll.option3, poll.option4].filter(Boolean) as string[];
+
     const voteCounts = responses.reduce(
       (acc, current) => {
         acc[current.selected_option] = (acc[current.selected_option] || 0) + 1
@@ -272,7 +276,7 @@ export default function AdminPollsPage() {
       {} as Record<string, number>,
     )
 
-    const chartData = [poll.option1, poll.option2, poll.option3, poll.option4].map((option) => ({
+    const chartData = pollOptions.map((option) => ({
       name: option,
       votes: voteCounts[option] || 0,
     }))
@@ -307,10 +311,33 @@ export default function AdminPollsPage() {
     }
   }
 
-const handleSavePoll = async () => {
-    if (!question.trim() || options.some((opt) => !opt.trim())) {
-      showAlert('Validation Error', 'Please fill in the question and all 4 options.', 'destructive')
-      return
+  // Function to handle adding a new option input
+  const handleAddOption = () => {
+    setOptions([...options, ''])
+  }
+
+  // Function to handle removing an option input
+  const handleRemoveOption = (index: number) => {
+    if (options.length > 2) {
+      const newOptions = options.filter((_, i) => i !== index)
+      setOptions(newOptions)
+    } else {
+      showAlert('Validation Error', 'A poll must have at least two options.', 'destructive');
+    }
+  }
+
+  const handleSavePoll = async () => {
+    const trimmedOptions = options.map(opt => opt.trim());
+    const validOptions = trimmedOptions.filter(Boolean);
+
+    if (!question.trim()) {
+      showAlert('Validation Error', 'Please provide a poll question.', 'destructive');
+      return;
+    }
+    
+    if (validOptions.length < 2) {
+      showAlert('Validation Error', 'A poll must have at least two options.', 'destructive');
+      return;
     }
 
     if (!startTime || !endTime) {
@@ -352,10 +379,10 @@ const handleSavePoll = async () => {
 
     const pollData = {
       question,
-      option1: options[0],
-      option2: options[1],
-      option3: options[2],
-      option4: options[3],
+      option1: validOptions[0],
+      option2: validOptions[1],
+      option3: validOptions[2] || null,
+      option4: validOptions[3] || null,
       poll_type: pollType,
       file_url: fileUrl,
       file_type: fileType,
@@ -417,7 +444,8 @@ const handleSavePoll = async () => {
   const handleEditPoll = (poll: Poll) => {
     setEditingId(poll.id)
     setQuestion(poll.question)
-    setOptions([poll.option1, poll.option2, poll.option3, poll.option4])
+    // Populate options from the poll object, handling undefined options
+    setOptions([poll.option1, poll.option2, poll.option3 || '', poll.option4 || ''].filter(Boolean))
     setPollType(poll.poll_type)
     setFile(null)
     setStartTime(poll.start_at ? poll.start_at.substring(0, 16) : '')
@@ -429,7 +457,7 @@ const handleSavePoll = async () => {
   const resetForm = () => {
     setEditingId(null)
     setQuestion('')
-    setOptions(['', '', '', ''])
+    setOptions(['', '']) // Reset to two options
     setPollType('single')
     setFile(null)
     setStartTime('')
@@ -654,6 +682,9 @@ const handleSavePoll = async () => {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {polls.map((poll) => {
                 const status = getPollStatus(poll)
+                // Filter out null/undefined options for display
+                const optionsToDisplay = [poll.option1, poll.option2, poll.option3, poll.option4].filter(Boolean);
+                
                 return (
                   <Card
                     key={poll.id}
@@ -726,7 +757,7 @@ const handleSavePoll = async () => {
 
                     <CardContent className="flex flex-1 flex-col justify-between">
                       <div className="mb-4 space-y-3">
-                        {[poll.option1, poll.option2, poll.option3, poll.option4].map(
+                        {optionsToDisplay.map(
                           (option, idx) => (
                             <div
                               key={idx}
@@ -867,9 +898,7 @@ const handleSavePoll = async () => {
       {/* Dialog for showing comments */}
       <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
         <DialogContent className="sm:max-w-2xl">
-          {/* <DialogHeader>
-            <DialogTitle className="text-2xl">Comments</DialogTitle>
-          </DialogHeader> */}
+        
           <div className="py-4">
             {selectedPoll && <PollComments pollId={selectedPoll.id} />}
           </div>
@@ -889,7 +918,7 @@ const handleSavePoll = async () => {
                 <DialogDescription>
                   This action cannot be undone. This will permanently delete the
                   poll and all its responses.
-                </DialogDescription>
+               </DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -925,7 +954,7 @@ const handleSavePoll = async () => {
                   Create New Poll
                 </DialogTitle>
                 <DialogDescription className="text-muted-foreground">
-                  Fill out the details to create a new poll
+                  Fill out the details to create a new poll.
                 </DialogDescription>
               </div>
             </div>
@@ -956,35 +985,59 @@ const handleSavePoll = async () => {
               </p>
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-base font-semibold text-foreground">
-                Answer Options
-              </Label>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {options.map((opt, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <Input
-                      type="text"
-                      placeholder={`Option ${idx + 1}`}
-                      value={opt}
-                      onChange={(e) => {
-                        if (e.target.value.length <= 10) {
-                          const newOpts = [...options]
-                          newOpts[idx] = e.target.value
-                          setOptions(newOpts)
-                        }
-                      }}
-                      className="border-2 bg-card focus:border-accent transition-colors"
-                    />
-                    <p className="flex justify-end text-xs text-muted-foreground">
-                      <span className={opt.length > 8 ? 'text-amber-600' : ''}>
-                        {opt.length}/10 characters
-                      </span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+           <div className="space-y-4">
+  <Label className="text-base font-semibold text-foreground">
+    Answer Options
+  </Label>
+  <p className="text-sm text-muted-foreground -mt-3">
+    A minimum of two options is required.
+  </p>
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    {options.map((opt, idx) => (
+      <div key={idx} className="flex items-center gap-2 relative">
+        <div className="relative flex-1">
+          <Input
+            type="text"
+            placeholder={`Option ${idx + 1}`}
+            value={opt}
+            onChange={(e) => {
+              if (e.target.value.length <= 10) {
+                const newOpts = [...options]
+                newOpts[idx] = e.target.value
+                setOptions(newOpts)
+              }
+            }}
+            className="border-2 bg-card focus:border-accent transition-colors pr-10"
+          />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            <span className={opt.length > 8 ? "text-amber-600" : ""}>
+              {opt.length}/10
+            </span>
+          </span>
+        </div>
+        {options.length > 2 && (
+          <button
+            type="button"
+            onClick={() => handleRemoveOption(idx)}
+            className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted-foreground/10 hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    ))}
+  </div>
+  {options.length < 4 && (
+    <Button
+      variant="outline"
+      onClick={handleAddOption}
+      className="mt-4 w-full border-dashed"
+    >
+      <PlusCircle className="mr-2 h-4 w-4" /> Add Option
+    </Button>
+  )}
+</div>
+
 
             <div className="space-y-3">
               <Label htmlFor="poll_type" className="text-base font-semibold text-foreground">
